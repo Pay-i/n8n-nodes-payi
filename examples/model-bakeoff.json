@@ -1,0 +1,163 @@
+{
+  "name": "Pay-i Model Bake-Off",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Run Bake-Off",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt",
+              "value": "Explain what a reverse proxy is in exactly two sentences.",
+              "type": "string"
+            },
+            {
+              "id": "useCaseName",
+              "name": "useCaseName",
+              "value": "model-bakeoff",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Define Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "provider": "openai",
+        "providerApiKey": "",
+        "model": "gpt-4o-mini",
+        "messages": "=[{\"role\": \"user\", \"content\": \"{{ $json.prompt }}\"}]",
+        "rawBody": "",
+        "correlationId": "={{ $execution.id }}",
+        "userId": "bakeoff-demo",
+        "useCaseName": "={{ $json.useCaseName }}",
+        "useCaseId": "",
+        "useCaseVersion": "",
+        "useCaseStep": "openai",
+        "useCaseProperties": "",
+        "limitIds": "",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": true
+      },
+      "id": "payi-openai",
+      "name": "OpenAI via Pay-i",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [480, 160],
+      "credentials": {
+        "payiApi": {
+          "id": "ilETepC1d8ccxzO4",
+          "name": "Pay-i account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "provider": "anthropic",
+        "providerApiKey": "",
+        "model": "claude-3-5-haiku-20241022",
+        "messages": "=[{\"role\": \"user\", \"content\": \"{{ $json.prompt }}\"}]",
+        "rawBody": "",
+        "correlationId": "={{ $execution.id }}",
+        "userId": "bakeoff-demo",
+        "useCaseName": "={{ $json.useCaseName }}",
+        "useCaseId": "",
+        "useCaseVersion": "",
+        "useCaseStep": "anthropic",
+        "useCaseProperties": "",
+        "limitIds": "",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": true
+      },
+      "id": "payi-anthropic",
+      "name": "Anthropic via Pay-i",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [480, 440],
+      "credentials": {
+        "payiApi": {
+          "id": "ilETepC1d8ccxzO4",
+          "name": "Pay-i account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-1",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [740, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const openai = $input.first().json;\nconst anthropic = $input.last().json;\n\n// Extract responses\nconst openaiResponse = openai.choices?.[0]?.message?.content || 'No response';\nconst anthropicResponse = anthropic.content?.[0]?.text || 'No response';\n\n// Extract costs\nconst openaiCost = openai.payiCost?.cost?.total?.base || 0;\nconst anthropicCost = anthropic.payiCost?.cost?.total?.base || 0;\n\nreturn [{\n  json: {\n    prompt: 'Explain what a reverse proxy is in exactly two sentences.',\n    results: {\n      openai: {\n        model: openai.model || 'gpt-4o-mini',\n        response: openaiResponse,\n        cost_usd: openaiCost,\n        request_id: openai.payiCost?.request_id || null\n      },\n      anthropic: {\n        model: anthropic.model || 'claude-3-5-haiku-20241022',\n        response: anthropicResponse,\n        cost_usd: anthropicCost,\n        request_id: anthropic.payiCost?.request_id || null\n      }\n    },\n    comparison: {\n      cheaper: openaiCost <= anthropicCost ? 'OpenAI' : 'Anthropic',\n      cost_difference_usd: Math.abs(openaiCost - anthropicCost),\n      total_cost_usd: openaiCost + anthropicCost\n    }\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Compare Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Run Bake-Off": {
+      "main": [
+        [
+          { "node": "Define Prompt", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Define Prompt": {
+      "main": [
+        [
+          { "node": "OpenAI via Pay-i", "type": "main", "index": 0 },
+          { "node": "Anthropic via Pay-i", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI via Pay-i": {
+      "main": [
+        [
+          { "node": "Combine Results", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Anthropic via Pay-i": {
+      "main": [
+        [
+          { "node": "Combine Results", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Combine Results": {
+      "main": [
+        [
+          { "node": "Compare Results", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

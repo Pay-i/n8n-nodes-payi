@@ -1,0 +1,144 @@
+{
+  "name": "Pay-i Support Bot with Cost Tracking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-bot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Incoming Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "support-bot-demo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "userId",
+              "name": "userId",
+              "value": "={{ $json.body.user_id || 'anonymous' }}",
+              "type": "string"
+            },
+            {
+              "id": "question",
+              "name": "question",
+              "value": "={{ $json.body.question || 'How do I reset my password?' }}",
+              "type": "string"
+            },
+            {
+              "id": "department",
+              "name": "department",
+              "value": "={{ $json.body.department || 'general' }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Extract Ticket Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "provider": "openai",
+        "providerApiKey": "",
+        "model": "gpt-4o-mini",
+        "messages": "=[{\"role\": \"system\", \"content\": \"You are a helpful customer support agent. Be concise and friendly. Answer in 2-3 sentences max.\"}, {\"role\": \"user\", \"content\": \"{{ $json.question }}\"}]",
+        "rawBody": "",
+        "correlationId": "={{ $execution.id }}",
+        "userId": "={{ $json.userId }}",
+        "useCaseName": "support-bot",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseVersion": "1",
+        "useCaseStep": "generate-response",
+        "useCaseProperties": "={{ JSON.stringify({department: $json.department}) }}",
+        "limitIds": "",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": true
+      },
+      "id": "payi-1",
+      "name": "Generate Response via Pay-i",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [480, 300],
+      "credentials": {
+        "payiApi": {
+          "id": "ilETepC1d8ccxzO4",
+          "name": "Pay-i account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst answer = response.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';\nconst cost = response.payiCost?.cost?.total?.base || 0;\nconst requestId = response.payiCost?.request_id || null;\n\nreturn [{\n  json: {\n    answer,\n    cost_usd: cost,\n    payi_request_id: requestId,\n    model: response.model\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-1",
+      "name": "Reply to Caller",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "Incoming Ticket": {
+      "main": [
+        [
+          { "node": "Extract Ticket Fields", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extract Ticket Fields": {
+      "main": [
+        [
+          { "node": "Generate Response via Pay-i", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Response via Pay-i": {
+      "main": [
+        [
+          { "node": "Format Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          { "node": "Reply to Caller", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

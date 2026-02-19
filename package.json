@@ -1,0 +1,58 @@
+{
+	"name": "n8n-nodes-payi",
+	"version": "0.1.0",
+	"description": "n8n community node for routing LLM requests through Pay-i proxy with cost tracking and budget enforcement",
+	"keywords": [
+		"n8n-community-node-package",
+		"n8n",
+		"pay-i",
+		"llm",
+		"ai",
+		"cost-tracking",
+		"proxy"
+	],
+	"license": "MIT",
+	"homepage": "https://github.com/pay-i/n8n-nodes-payi",
+	"author": {
+		"name": "Pay-i"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/pay-i/n8n-nodes-payi.git"
+	},
+	"main": "index.js",
+	"scripts": {
+		"build": "tsc && gulp build:icons",
+		"dev": "tsc --watch",
+		"format": "prettier nodes credentials --write",
+		"lint": "eslint nodes credentials --ext .ts",
+		"lint:fix": "eslint nodes credentials --ext .ts --fix",
+		"prepublishOnly": "npm run build"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"credentials": [
+			"dist/credentials/PayiApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Payi/Payi.node.js"
+		]
+	},
+	"devDependencies": {
+		"@typescript-eslint/parser": "~7.18.0",
+		"eslint": "~8.57.0",
+		"gulp": "^4.0.2",
+		"n8n-workflow": "*",
+		"prettier": "~3.3.0",
+		"typescript": "~5.5.0"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	},
+	"engines": {
+		"node": ">=18"
+	}
+}

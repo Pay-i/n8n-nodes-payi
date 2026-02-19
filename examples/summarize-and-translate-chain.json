@@ -1,0 +1,184 @@
+{
+  "name": "Pay-i Summarize & Translate Chain",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text",
+              "name": "text",
+              "value": "Artificial intelligence has transformed numerous industries over the past decade. In healthcare, AI systems now assist in diagnosing diseases, predicting patient outcomes, and accelerating drug discovery. The financial sector uses AI for fraud detection, algorithmic trading, and personalized banking services. Manufacturing has embraced AI-powered quality control, predictive maintenance, and supply chain optimization. Education is being reshaped by adaptive learning platforms that tailor content to individual student needs. Transportation is on the cusp of revolution with autonomous vehicles and AI-optimized logistics networks. However, these advances come with significant challenges including data privacy concerns, algorithmic bias, job displacement fears, and the need for robust regulatory frameworks to ensure responsible AI development and deployment.",
+              "type": "string"
+            },
+            {
+              "id": "targetLanguage",
+              "name": "targetLanguage",
+              "value": "Spanish",
+              "type": "string"
+            },
+            {
+              "id": "useCaseId",
+              "name": "useCaseId",
+              "value": "={{ $execution.id }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Input Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "provider": "openai",
+        "providerApiKey": "",
+        "model": "gpt-4o-mini",
+        "messages": "=[{\"role\": \"user\", \"content\": \"Summarize the following text in 2-3 sentences:\\n\\n{{ $json.text }}\"}]",
+        "rawBody": "",
+        "correlationId": "={{ $execution.id }}",
+        "userId": "demo-user",
+        "useCaseName": "summarize-translate",
+        "useCaseId": "={{ $json.useCaseId }}",
+        "useCaseVersion": "1",
+        "useCaseStep": "summarize",
+        "useCaseProperties": "",
+        "limitIds": "",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": true
+      },
+      "id": "payi-summarize",
+      "name": "Step 1: Summarize",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [480, 300],
+      "credentials": {
+        "payiApi": {
+          "id": "ilETepC1d8ccxzO4",
+          "name": "Pay-i account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "summary",
+              "name": "summary",
+              "value": "={{ $json.choices[0].message.content }}",
+              "type": "string"
+            },
+            {
+              "id": "summaryCost",
+              "name": "summaryCost",
+              "value": "={{ $json.payiCost?.cost?.total?.base || 0 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "id": "set-2",
+      "name": "Extract Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "provider": "openai",
+        "providerApiKey": "",
+        "model": "gpt-4o-mini",
+        "messages": "=[{\"role\": \"user\", \"content\": \"Translate the following text to {{ $('Input Text').item.json.targetLanguage }}:\\n\\n{{ $json.summary }}\"}]",
+        "rawBody": "",
+        "correlationId": "={{ $execution.id }}",
+        "userId": "demo-user",
+        "useCaseName": "summarize-translate",
+        "useCaseId": "={{ $('Input Text').item.json.useCaseId }}",
+        "useCaseVersion": "1",
+        "useCaseStep": "translate",
+        "useCaseProperties": "={{ JSON.stringify({target_language: $('Input Text').item.json.targetLanguage}) }}",
+        "limitIds": "",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": true
+      },
+      "id": "payi-translate",
+      "name": "Step 2: Translate",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [920, 300],
+      "credentials": {
+        "payiApi": {
+          "id": "ilETepC1d8ccxzO4",
+          "name": "Pay-i account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const translateResponse = $input.first().json;\nconst summary = $('Extract Summary').first().json.summary;\nconst summaryCost = $('Extract Summary').first().json.summaryCost;\nconst translation = translateResponse.choices?.[0]?.message?.content || 'Translation failed';\nconst translateCost = translateResponse.payiCost?.cost?.total?.base || 0;\n\nreturn [{\n  json: {\n    pipeline: 'summarize-translate',\n    steps: {\n      summarize: {\n        output: summary,\n        cost_usd: summaryCost\n      },\n      translate: {\n        language: $('Input Text').first().json.targetLanguage,\n        output: translation,\n        cost_usd: translateCost\n      }\n    },\n    total_cost_usd: summaryCost + translateCost\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Pipeline Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          { "node": "Input Text", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Input Text": {
+      "main": [
+        [
+          { "node": "Step 1: Summarize", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Step 1: Summarize": {
+      "main": [
+        [
+          { "node": "Extract Summary", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extract Summary": {
+      "main": [
+        [
+          { "node": "Step 2: Translate", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Step 2: Translate": {
+      "main": [
+        [
+          { "node": "Pipeline Summary", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
