@@ -72,8 +72,8 @@
       "position": [480, 300],
       "credentials": {
         "payiApi": {
-          "id": "ilETepC1d8ccxzO4",
-          "name": "Pay-i account 2"
+          "id": "",
+          "name": "Pay-i API"
         }
       }
     },

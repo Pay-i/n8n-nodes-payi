@@ -1,0 +1,55 @@
+{
+  "name": "Pay-i Proxy Quick Start",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "provider": "openai",
+        "providerApiKey": "",
+        "model": "gpt-4o",
+        "messages": "[{\"role\": \"user\", \"content\": \"What is Pay-i in one sentence?\"}]",
+        "rawBody": "",
+        "userId": "demo-user",
+        "useCaseName": "={{ $workflow.name }}",
+        "useCaseId": "={{ $execution.id }}",
+        "useCaseVersion": "",
+        "useCaseStep": "",
+        "useCaseProperties": "",
+        "limitIds": "",
+        "includeCostData": true,
+        "returnFullResponse": false,
+        "debugLogging": true
+      },
+      "id": "payi-1",
+      "name": "Pay-i Proxy",
+      "type": "n8n-nodes-payi.payi",
+      "typeVersion": 1,
+      "position": [220, 300],
+      "credentials": {
+        "payiApi": {
+          "id": "",
+          "name": "Pay-i API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run": {
+      "main": [
+        [
+          { "node": "Pay-i Proxy", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
