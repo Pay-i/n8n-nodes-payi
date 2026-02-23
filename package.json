@@ -14,7 +14,8 @@
 	"license": "MIT",
 	"homepage": "https://github.com/pay-i/n8n-nodes-payi",
 	"author": {
-		"name": "Pay-i"
+		"name": "Pay-i",
+		"email": "support@pay-i.com"
 	},
 	"repository": {
 		"type": "git",
