@@ -2,14 +2,6 @@ import type { INodeProperties } from 'n8n-workflow';
 
 export const trackingFields: INodeProperties[] = [
 	{
-		displayName: 'xProxy-Request-Tags',
-		name: 'correlationId',
-		type: 'string',
-		default: '={{ $execution.id }}',
-		description:
-			'Comma-separated tags for this request. Defaults to the n8n execution ID for correlation across nodes.',
-	},
-	{
 		displayName: 'xProxy-User-ID',
 		name: 'userId',
 		type: 'string',
@@ -20,16 +12,17 @@ export const trackingFields: INodeProperties[] = [
 		displayName: 'xProxy-UseCase-Name',
 		name: 'useCaseName',
 		type: 'string',
-		default: '',
-		description: 'Use case definition name for tracking and KPI scoring',
+		default: '={{ $workflow.name }}',
+		description:
+			'Use case definition name for tracking and KPI scoring. Defaults to the workflow name.',
 	},
 	{
 		displayName: 'xProxy-UseCase-ID',
 		name: 'useCaseId',
 		type: 'string',
-		default: '',
+		default: '={{ $execution.id }}',
 		description:
-			'Unique identifier for this use case instance. Same name + ID groups requests for KPI scoring.',
+			'Unique identifier for this use case instance. Defaults to the n8n execution ID. Same name + ID groups requests for KPI scoring.',
 	},
 	{
 		displayName: 'xProxy-UseCase-Version',

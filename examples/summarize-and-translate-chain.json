@@ -47,7 +47,7 @@
         "model": "gpt-4o-mini",
         "messages": "=[{\"role\": \"user\", \"content\": \"Summarize the following text in 2-3 sentences:\\n\\n{{ $json.text }}\"}]",
         "rawBody": "",
-        "correlationId": "={{ $execution.id }}",
+
         "userId": "demo-user",
         "useCaseName": "summarize-translate",
         "useCaseId": "={{ $json.useCaseId }}",
@@ -106,7 +106,7 @@
         "model": "gpt-4o-mini",
         "messages": "=[{\"role\": \"user\", \"content\": \"Translate the following text to {{ $('Input Text').item.json.targetLanguage }}:\\n\\n{{ $json.summary }}\"}]",
         "rawBody": "",
-        "correlationId": "={{ $execution.id }}",
+
         "userId": "demo-user",
         "useCaseName": "summarize-translate",
         "useCaseId": "={{ $('Input Text').item.json.useCaseId }}",

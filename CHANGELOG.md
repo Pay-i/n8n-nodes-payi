@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 (2026-02-23)
+
+### Features
+- **Pay-i Chat Model** node for AI Agent integration (`lmChatPayi`)
+  - LangChain-compatible chat model that plugs into n8n's AI Agent node
+  - Routes OpenAI-compatible requests through the Pay-i proxy
+  - Supports all Pay-i tracking headers (User ID, Use Case, Limits, etc.)
+  - Configurable model options: temperature, max tokens, frequency/presence penalty, top P, timeout, max retries
+- New example workflow: `ai-agent-chat.json` — Manual Chat Trigger + AI Agent + Pay-i Chat Model
+
 ## 0.1.0 (2026-02-19)
 
 Initial release of the Pay-i Proxy node for n8n.

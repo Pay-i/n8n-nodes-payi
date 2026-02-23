@@ -2,6 +2,11 @@
 
 n8n community node for routing LLM requests through the [Pay-i](https://pay-i.com) proxy for cost tracking, budget enforcement, and usage analytics.
 
+This package provides two nodes:
+
+- **Pay-i Proxy** — Direct HTTP proxy node for any supported provider (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock)
+- **Pay-i Chat Model** — LangChain-compatible chat model for use with n8n's AI Agent node
+
 ## What is Pay-i?
 
 Pay-i acts as a transparent proxy between your application and LLM providers. Every request routed through Pay-i is automatically tracked for cost, usage, and performance — giving you real-time visibility and budget controls without changing your prompts or model logic.
@@ -23,6 +28,8 @@ npm install n8n-nodes-payi
 ```
 
 Restart n8n after installing.
+
+> **AI Agent usage:** To use the Pay-i Chat Model with n8n's AI Agent node, start n8n with `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true`.
 
 ## Prerequisites
 
@@ -72,16 +79,36 @@ The API key is sent to Pay-i via the `xProxy-Api-Key` header on every request.
 - **AWS Session Token** — Optional, for temporary credentials
 - **AWS Region** — AWS region (default: `us-east-1`)
 
+## Pay-i Chat Model (AI Agent Integration)
+
+The **Pay-i Chat Model** node is a LangChain-compatible chat model that plugs into n8n's AI Agent node. It routes OpenAI-compatible requests through the Pay-i proxy.
+
+### Quick Start
+
+1. Add a **Manual Chat Trigger** node
+2. Add an **AI Agent** node and connect the trigger to it
+3. Add a **Pay-i Chat Model** node and connect it to the AI Agent's "Chat Model" input
+4. Configure the Pay-i Chat Model with your Pay-i credentials and OpenAI API key
+
+### Chat Model Fields
+
+| Field | Description |
+|-------|-------------|
+| **Model ID** | OpenAI model identifier (e.g. `gpt-4o`, `gpt-4.1-mini`) |
+| **OpenAI API Key** | Your OpenAI API key (sent as Bearer token through the proxy) |
+| **Options** | Temperature, max tokens, frequency/presence penalty, top P, timeout, max retries |
+
+All [tracking headers](#tracking-headers) (User ID, Use Case, Limits, etc.) are also available on the Chat Model node.
+
 ## Tracking Headers
 
 Pay-i uses custom HTTP headers to associate requests with users, use cases, and budgets. All tracking fields are optional.
 
 | Field (Header Name) | Description |
 |---------------------|-------------|
-| **xProxy-Request-Tags** | Comma-separated tags for this request. Defaults to the n8n execution ID for automatic correlation across nodes in the same workflow run. |
 | **xProxy-User-ID** | User identifier for per-user cost attribution |
-| **xProxy-UseCase-Name** | Use case definition name for tracking and KPI scoring |
-| **xProxy-UseCase-ID** | Unique instance ID. Same name + ID groups requests for KPI evaluation. |
+| **xProxy-UseCase-Name** | Use case definition name for tracking and KPI scoring. Defaults to the workflow name. |
+| **xProxy-UseCase-ID** | Unique instance ID. Same name + ID groups requests for KPI evaluation. Defaults to the n8n execution ID. |
 | **xProxy-UseCase-Version** | Version of the use case definition |
 | **xProxy-UseCase-Step** | Step within a multi-step use case |
 | **xProxy-UseCase-Properties** | JSON object of key-value properties (e.g. `{"department": "support"}`) |
@@ -93,6 +120,7 @@ These Pay-i headers are supported by the proxy but not exposed in the node UI. Y
 
 | Header | Description |
 |--------|-------------|
+| `xProxy-Request-Tags` | Comma-separated tags for request correlation |
 | `xProxy-Account-Name` | Account name for multi-tenant tracking |
 | `xProxy-Request-Properties` | JSON object of request-level properties |
 | `xProxy-PriceAs-Category` | Override pricing category |
@@ -208,13 +236,19 @@ npm pack
 
 # Install into n8n
 cd ~/.n8n/nodes
-npm install /path/to/n8n-nodes-payi-0.1.0.tgz
+npm install /path/to/n8n-nodes-payi-0.2.0.tgz
 
 # Clear n8n cache (important after updates)
 rm -rf ~/.n8n/.cache
 
 # Restart n8n
 ```
+
+## Support
+
+- Email: [support@pay-i.com](mailto:support@pay-i.com)
+- Support Portal: [https://www.pay-i.com/support](https://www.pay-i.com/support)
+- GitHub Issues: [https://github.com/pay-i/n8n-nodes-payi/issues](https://github.com/pay-i/n8n-nodes-payi/issues)
 
 ## License
 

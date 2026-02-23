@@ -41,7 +41,7 @@
         "model": "gpt-4o-mini",
         "messages": "=[{\"role\": \"user\", \"content\": \"{{ $json.prompt }}\"}]",
         "rawBody": "",
-        "correlationId": "={{ $execution.id }}",
+
         "userId": "bakeoff-demo",
         "useCaseName": "={{ $json.useCaseName }}",
         "useCaseId": "",
@@ -72,7 +72,7 @@
         "model": "claude-3-5-haiku-20241022",
         "messages": "=[{\"role\": \"user\", \"content\": \"{{ $json.prompt }}\"}]",
         "rawBody": "",
-        "correlationId": "={{ $execution.id }}",
+
         "userId": "bakeoff-demo",
         "useCaseName": "={{ $json.useCaseName }}",
         "useCaseId": "",

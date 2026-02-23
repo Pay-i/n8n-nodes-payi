@@ -53,7 +53,7 @@
         "model": "gpt-4o-mini",
         "messages": "=[{\"role\": \"system\", \"content\": \"You are a helpful customer support agent. Be concise and friendly. Answer in 2-3 sentences max.\"}, {\"role\": \"user\", \"content\": \"{{ $json.question }}\"}]",
         "rawBody": "",
-        "correlationId": "={{ $execution.id }}",
+
         "userId": "={{ $json.userId }}",
         "useCaseName": "support-bot",
         "useCaseId": "={{ $execution.id }}",

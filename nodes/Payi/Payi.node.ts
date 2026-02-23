@@ -145,7 +145,7 @@ export class Payi implements INodeType {
 				}
 
 				// Build tracking headers (sanitized against header injection)
-				const correlationId = this.getNodeParameter('correlationId', i, '') as string;
+
 				const userId = this.getNodeParameter('userId', i, '') as string;
 				const useCaseName = this.getNodeParameter('useCaseName', i, '') as string;
 				const useCaseId = this.getNodeParameter('useCaseId', i, '') as string;
@@ -165,9 +165,6 @@ export class Payi implements INodeType {
 					trackingHeaders['xProxy-UseCase-Properties'] = JSON.stringify(props);
 				}
 				if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = sanitizeHeaderValue(limitIds);
-
-				if (correlationId)
-					trackingHeaders['xProxy-Request-Tags'] = sanitizeHeaderValue(correlationId);
 
 				const headers: Record<string, string> = {
 					'Content-Type': 'application/json',
