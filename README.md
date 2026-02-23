@@ -1,15 +1,28 @@
 # n8n-nodes-payi
 
-n8n community node for routing LLM requests through the [Pay-i](https://pay-i.com) proxy for cost tracking, budget enforcement, and usage analytics.
-
-This package provides two nodes:
-
-- **Pay-i Proxy** — Direct HTTP proxy node for any supported provider (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock)
-- **Pay-i Chat Model** — LangChain-compatible chat model for use with n8n's AI Agent node
+n8n community node for [Pay-i](https://pay-i.com) — add cost tracking, budget enforcement, and usage attribution to every LLM call in your n8n workflows.
 
 ## What is Pay-i?
 
-Pay-i acts as a transparent proxy between your application and LLM providers. Every request routed through Pay-i is automatically tracked for cost, usage, and performance — giving you real-time visibility and budget controls without changing your prompts or model logic.
+[Pay-i](https://pay-i.com) is an AI cost management platform. It sits as a transparent proxy between your application and LLM providers (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, and more), giving you:
+
+- **Real-time cost visibility** — See the dollar cost of every LLM request as it happens, broken down by input/output tokens
+- **Budget enforcement** — Set hard spending limits per user, team, use case, or workflow so costs never run away
+- **Usage attribution** — Know exactly who and what is driving your AI spend with per-user and per-use-case tracking
+- **Zero code changes** — Pay-i is a drop-in proxy. Your prompts, models, and provider API keys stay the same. Just route through Pay-i and you're tracked.
+
+Learn more at [pay-i.com](https://pay-i.com) or read the [Pay-i documentation](https://docs.pay-i.com).
+
+## What Does This Node Do?
+
+This package provides two n8n nodes that route your LLM requests through the Pay-i proxy:
+
+| Node | Use Case |
+|------|----------|
+| **Pay-i Proxy** | Direct HTTP proxy for any supported provider. Drop it into any workflow to send LLM requests through Pay-i with full control over the request body, provider, and model. |
+| **Pay-i Chat Model** | LangChain-compatible chat model that plugs into n8n's **AI Agent** node. Use it to add cost tracking to agent workflows without changing how the agent works. |
+
+Both nodes automatically send Pay-i tracking headers (user ID, use case, budget limits) so every request is attributed and enforced.
 
 ## Installation
 
