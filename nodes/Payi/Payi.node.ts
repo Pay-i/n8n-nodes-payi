@@ -71,7 +71,7 @@ export class Payi implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Pay-i Proxy',
 		name: 'payi',
-		icon: 'file:payi.png',
+		icon: 'file:payi_logo.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["provider"]}} — {{$parameter["model"]}}',
@@ -220,7 +220,7 @@ export class Payi implements INodeType {
 					delete outputData.xproxy_result;
 				}
 
-				returnData.push({ json: outputData });
+				returnData.push({ json: outputData, pairedItem: { item: i } });
 			} catch (error) {
 				if (this.continueOnFail()) {
 					const errorMessage =

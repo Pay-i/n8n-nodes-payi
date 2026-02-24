@@ -18,7 +18,7 @@ export class PayiChatModel implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Pay-i Chat Model',
 		name: 'lmChatPayi',
-		icon: 'file:payi.png',
+		icon: 'file:payi_logo.png',
 		group: ['transform'],
 		version: [1],
 		description: 'Chat model routed through Pay-i proxy for cost tracking and budget enforcement',
