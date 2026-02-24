@@ -224,6 +224,23 @@ This node implements the [Pay-i proxy pattern](https://docs.pay-i.com) using the
 - **Google Vertex AI** — Commented out in the Pay-i Python SDK; will be added when officially supported
 - **Azure Anthropic** — Supported by Pay-i (`/api/v1/proxy/azure.anthropic`) but not yet in this node
 
+## Migrating Existing Workflows to Pay-i
+
+Already have n8n workflows calling OpenAI, Anthropic, or other LLM providers? The **[payi-n8n-toolkit](https://github.com/pay-i/payi-n8n-toolkit)** tool can scan your n8n instance, find native LLM nodes, and replace them with Pay-i equivalents — rewiring all connections and expression references automatically.
+
+```bash
+# Quick start
+export N8N_BASE_URL=http://localhost:5678
+export N8N_API_KEY=your-n8n-api-key
+export PAYI_BASE_URL=https://api.yourcompany.pay-i.com
+export PAYI_API_KEY=your-payi-api-key
+
+python3 migrate-workflows-to-payi.py --dry-run   # preview changes
+python3 migrate-workflows-to-payi.py              # run migration
+```
+
+See the [payi-n8n-toolkit README](https://github.com/pay-i/payi-n8n-toolkit) for full documentation, CLI options, and credential redirect scripts.
+
 ## Development
 
 ```bash

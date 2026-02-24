@@ -1,4 +1,5 @@
 import type { IExecuteFunctions } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
 
 export interface ProviderRequest {
 	urlPath: string;
@@ -64,6 +65,6 @@ export async function buildProviderRequest(
 		}
 
 		default:
-			throw new Error(`Unsupported provider: ${provider}`);
+			throw new NodeOperationError(context.getNode(), `Unsupported provider: ${provider}`);
 	}
 }
