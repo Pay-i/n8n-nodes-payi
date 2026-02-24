@@ -19,11 +19,12 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/pay-i/n8n-nodes-payi.git"
+		"url": "git+https://github.com/pay-i/n8n-nodes-payi.git"
 	},
 	"main": "index.js",
 	"scripts": {
-		"build": "tsc && gulp build:icons",
+		"clean": "rm -rf dist",
+		"build": "npm run clean && tsc && gulp build:icons",
 		"dev": "tsc --watch",
 		"format": "prettier nodes credentials --write",
 		"lint": "eslint nodes credentials --ext .ts",
