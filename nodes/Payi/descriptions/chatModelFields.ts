@@ -2,22 +2,13 @@ import type { INodeProperties } from 'n8n-workflow';
 
 export const chatModelFields: INodeProperties[] = [
 	{
-		displayName: 'Model ID',
+		displayName: 'Model',
 		name: 'model',
 		type: 'string',
 		default: 'gpt-4o',
 		required: true,
-		placeholder: 'e.g. gpt-4o, gpt-4.1-mini',
+		placeholder: 'e.g. gpt-4o, gpt-5.2, o3-mini',
 		description: 'The OpenAI model ID to use',
-	},
-	{
-		displayName: 'OpenAI API Key',
-		name: 'providerApiKey',
-		type: 'string',
-		typeOptions: { password: true },
-		default: '',
-		required: true,
-		description: 'Your OpenAI API key — sent as the Bearer token through the Pay-i proxy',
 	},
 	{
 		displayName: 'Options',

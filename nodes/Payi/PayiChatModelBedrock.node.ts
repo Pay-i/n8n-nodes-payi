@@ -7,23 +7,24 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
-import { chatModelFields } from './descriptions/chatModelFields';
+import { chatModelBedrockFields } from './descriptions/chatModelBedrockFields';
 import { createTrackingFields } from './descriptions/trackingFields';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 // Declared here so TypeScript accepts the require() calls.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export class PayiChatModel implements INodeType {
+export class PayiChatModelBedrock implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Pay-i OpenAI (Proxy)',
-		name: 'lmChatPayi',
+		displayName: 'Pay-i Amazon Bedrock (Proxy)',
+		name: 'lmChatPayiBedrock',
 		icon: 'file:payi_logo.png',
 		group: ['transform'],
 		version: [1],
-		description: 'OpenAI chat model routed through Pay-i proxy for cost tracking and budget enforcement',
+		description:
+			'Amazon Bedrock chat model routed through Pay-i proxy for cost tracking and budget enforcement',
 		defaults: {
-			name: 'Pay-i OpenAI (Proxy)',
+			name: 'Pay-i Amazon Bedrock (Proxy)',
 		},
 		codex: {
 			categories: ['AI'],
@@ -41,28 +42,32 @@ export class PayiChatModel implements INodeType {
 				required: true,
 			},
 			{
-				name: 'openAiApi',
+				name: 'aws',
 				required: true,
 			},
 		],
 		properties: [
-			...chatModelFields,
-			...createTrackingFields('openai', 'model'),
+			...chatModelBedrockFields,
+			...createTrackingFields('bedrock', 'model'),
 		],
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		// Runtime imports — resolved through n8n's VM context, not bundled
-		const { ChatOpenAI } = require('@langchain/openai');
+		const { ChatBedrockConverse } = require('@langchain/aws');
 		const { N8nLlmTracing, makeN8nLlmFailedAttemptHandler } = require('@n8n/ai-utilities');
 
 		const payiCredentials = await this.getCredentials('payiApi');
 		const payiBaseUrl = (payiCredentials.baseUrl as string).replace(/\/+$/, '');
 		const payiApiKey = payiCredentials.apiKey as string;
 
-		const providerCredentials = await this.getCredentials('openAiApi');
-		const providerApiKey = providerCredentials.apiKey as string;
-		const modelName = this.getNodeParameter('model', itemIndex) as string;
+		const awsCredentialsRaw = await this.getCredentials('aws');
+		const awsAccessKeyId = awsCredentialsRaw.accessKeyId as string;
+		const awsSecretAccessKey = awsCredentialsRaw.secretAccessKey as string;
+		const awsSessionToken = (awsCredentialsRaw.sessionToken as string) || '';
+
+		const modelId = this.getNodeParameter('model', itemIndex) as string;
+		const region = this.getNodeParameter('region', itemIndex, (awsCredentialsRaw.region as string) || 'us-east-1') as string;
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
 
 		// Build tracking headers
@@ -88,35 +93,44 @@ export class PayiChatModel implements INodeType {
 		}
 		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
 
-		const timeout = options.timeout as number | undefined;
-		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
-		const defaultHeaders: Record<string, string> = {
+		// Build AWS credentials
+		const awsCredentials: Record<string, string> = {
+			accessKeyId: awsAccessKeyId,
+			secretAccessKey: awsSecretAccessKey,
+		};
+		if (awsSessionToken) {
+			awsCredentials.sessionToken = awsSessionToken;
+		}
+
+		// Route through Pay-i Bedrock proxy
+		// The proxy URL replaces the Bedrock endpoint host
+		const proxyHost = `${payiBaseUrl}/api/v1/proxy/aws.bedrock`.replace(/^https?:\/\//, '');
+		const additionalHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
 			...trackingHeaders,
 		};
 
 		if (debugLogging) {
 			const mask = (v: string) => v.length <= 8 ? '****' : v.substring(0, 8) + '****';
-			this.logger.info(`[Pay-i OpenAI] ──── DEBUG (item ${itemIndex}) ────`);
-			this.logger.info(`[Pay-i OpenAI] model="${modelName}" baseURL="${baseURL}"`);
+			this.logger.info(`[Pay-i Bedrock] ──── DEBUG (item ${itemIndex}) ────`);
+			this.logger.info(`[Pay-i Bedrock] model="${modelId}" region="${region}" proxyHost="${proxyHost}"`);
 			const masked = Object.fromEntries(
-				Object.entries(defaultHeaders).map(([k, v]) =>
+				Object.entries(additionalHeaders).map(([k, v]) =>
 					k === 'xProxy-Api-Key' ? [k, mask(v)] : [k, v],
 				),
 			);
-			this.logger.info(`[Pay-i OpenAI] Headers: ${JSON.stringify(masked, null, 2)}`);
+			this.logger.info(`[Pay-i Bedrock] Headers: ${JSON.stringify(masked, null, 2)}`);
 		}
 
-		const model = new ChatOpenAI({
-			apiKey: providerApiKey,
-			model: modelName,
-			...options,
-			timeout,
-			maxRetries: (options.maxRetries as number) ?? 2,
-			configuration: {
-				baseURL,
-				defaultHeaders,
-			},
+		const model = new ChatBedrockConverse({
+			model: modelId,
+			region,
+			credentials: awsCredentials,
+			endpointHost: proxyHost,
+			temperature: options.temperature as number | undefined,
+			maxTokens: options.maxTokens as number | undefined,
+			topP: options.topP as number | undefined,
+			additionalHeaders,
 			callbacks: [new N8nLlmTracing(this)],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),
 		});

@@ -7,23 +7,24 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
-import { chatModelFields } from './descriptions/chatModelFields';
+import { chatModelAzureFields } from './descriptions/chatModelAzureFields';
 import { createTrackingFields } from './descriptions/trackingFields';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 // Declared here so TypeScript accepts the require() calls.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export class PayiChatModel implements INodeType {
+export class PayiChatModelAzure implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Pay-i OpenAI (Proxy)',
-		name: 'lmChatPayi',
+		displayName: 'Pay-i Azure AI Foundry (Proxy)',
+		name: 'lmChatPayiAzure',
 		icon: 'file:payi_logo.png',
 		group: ['transform'],
 		version: [1],
-		description: 'OpenAI chat model routed through Pay-i proxy for cost tracking and budget enforcement',
+		description:
+			'Azure AI Foundry chat model routed through Pay-i proxy for cost tracking and budget enforcement',
 		defaults: {
-			name: 'Pay-i OpenAI (Proxy)',
+			name: 'Pay-i Azure AI Foundry (Proxy)',
 		},
 		codex: {
 			categories: ['AI'],
@@ -41,18 +42,23 @@ export class PayiChatModel implements INodeType {
 				required: true,
 			},
 			{
-				name: 'openAiApi',
+				name: 'azureOpenAiApi',
 				required: true,
 			},
 		],
 		properties: [
-			...chatModelFields,
-			...createTrackingFields('openai', 'model'),
+			...chatModelAzureFields,
+			...createTrackingFields('azure', 'deploymentName'),
 		],
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		// Runtime imports — resolved through n8n's VM context, not bundled
+		// We use ChatOpenAI (not AzureChatOpenAI) because:
+		//   1. Azure OpenAI's wire format is identical to OpenAI (same JSON schema)
+		//   2. ChatOpenAI lets us set baseURL/headers directly via configuration
+		//   3. AzureChatOpenAI's internal auth handling (double header injection,
+		//      request-time overrides) conflicts with Pay-i's proxy auth flow
 		const { ChatOpenAI } = require('@langchain/openai');
 		const { N8nLlmTracing, makeN8nLlmFailedAttemptHandler } = require('@n8n/ai-utilities');
 
@@ -60,9 +66,21 @@ export class PayiChatModel implements INodeType {
 		const payiBaseUrl = (payiCredentials.baseUrl as string).replace(/\/+$/, '');
 		const payiApiKey = payiCredentials.apiKey as string;
 
-		const providerCredentials = await this.getCredentials('openAiApi');
+		const providerCredentials = await this.getCredentials('azureOpenAiApi');
 		const providerApiKey = providerCredentials.apiKey as string;
-		const modelName = this.getNodeParameter('model', itemIndex) as string;
+		// Build the upstream Azure endpoint URL for Pay-i proxy routing.
+		// The credential may have an explicit endpoint, otherwise construct from resourceName.
+		const azureResourceName = providerCredentials.resourceName as string;
+		const azureEndpointRaw = (providerCredentials.endpoint as string) || '';
+		const azureEndpoint = azureEndpointRaw
+			? azureEndpointRaw.replace(/\/+$/, '')
+			: `https://${azureResourceName}.openai.azure.com`;
+
+		const deploymentName = this.getNodeParameter('deploymentName', itemIndex) as string;
+		const nodeApiVersion = this.getNodeParameter('apiVersion', itemIndex, '') as string;
+		// Prefer the node parameter if explicitly set; fall back to the credential's apiVersion
+		const credApiVersion = (providerCredentials.apiVersion as string) || '';
+		const apiVersion = nodeApiVersion || credApiVersion || '2024-08-01-preview';
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
 
 		// Build tracking headers
@@ -89,33 +107,49 @@ export class PayiChatModel implements INodeType {
 		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
 
 		const timeout = options.timeout as number | undefined;
-		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
+
+		// Construct the Azure-style URL through Pay-i's proxy.
+		// Azure OpenAI uses: {endpoint}/openai/deployments/{name}/chat/completions?api-version={v}
+		// Pay-i proxy prefix: {payiBaseUrl}/api/v1/proxy/azure.openai
+		// ChatOpenAI appends /chat/completions to baseURL, so we set baseURL up to the deployment:
+		const baseURL = `${payiBaseUrl}/api/v1/proxy/azure.openai/openai/deployments/${deploymentName}`;
+
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
+			'xProxy-Provider-BaseUri': azureEndpoint,
+			'xProxy-PriceAs-Resource': deploymentName,
+			'api-key': providerApiKey,
 			...trackingHeaders,
 		};
 
 		if (debugLogging) {
 			const mask = (v: string) => v.length <= 8 ? '****' : v.substring(0, 8) + '****';
-			this.logger.info(`[Pay-i OpenAI] ──── DEBUG (item ${itemIndex}) ────`);
-			this.logger.info(`[Pay-i OpenAI] model="${modelName}" baseURL="${baseURL}"`);
+			this.logger.info(`[Pay-i Azure] ──── DEBUG (item ${itemIndex}) ────`);
+			this.logger.info(`[Pay-i Azure] Credential keys: ${Object.keys(providerCredentials).join(', ')}`);
+			this.logger.info(`[Pay-i Azure] resourceName="${azureResourceName}" endpointRaw="${azureEndpointRaw}"`);
+			this.logger.info(`[Pay-i Azure] → azureEndpoint="${azureEndpoint}"`);
+			this.logger.info(`[Pay-i Azure] deployment="${deploymentName}" apiVersion="${apiVersion}"`);
+			this.logger.info(`[Pay-i Azure] baseURL="${baseURL}"`);
 			const masked = Object.fromEntries(
 				Object.entries(defaultHeaders).map(([k, v]) =>
-					k === 'xProxy-Api-Key' ? [k, mask(v)] : [k, v],
+					['xProxy-Api-Key', 'api-key'].includes(k) ? [k, mask(v)] : [k, v],
 				),
 			);
-			this.logger.info(`[Pay-i OpenAI] Headers: ${JSON.stringify(masked, null, 2)}`);
+			this.logger.info(`[Pay-i Azure] Headers: ${JSON.stringify(masked, null, 2)}`);
 		}
 
 		const model = new ChatOpenAI({
 			apiKey: providerApiKey,
-			model: modelName,
+			model: deploymentName,
 			...options,
 			timeout,
 			maxRetries: (options.maxRetries as number) ?? 2,
 			configuration: {
 				baseURL,
 				defaultHeaders,
+				defaultQuery: {
+					'api-version': apiVersion,
+				},
 			},
 			callbacks: [new N8nLlmTracing(this)],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),

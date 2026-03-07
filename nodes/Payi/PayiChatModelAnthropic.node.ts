@@ -7,23 +7,24 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
-import { chatModelFields } from './descriptions/chatModelFields';
+import { chatModelAnthropicFields } from './descriptions/chatModelAnthropicFields';
 import { createTrackingFields } from './descriptions/trackingFields';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 // Declared here so TypeScript accepts the require() calls.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export class PayiChatModel implements INodeType {
+export class PayiChatModelAnthropic implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Pay-i OpenAI (Proxy)',
-		name: 'lmChatPayi',
+		displayName: 'Pay-i Anthropic (Proxy)',
+		name: 'lmChatPayiAnthropic',
 		icon: 'file:payi_logo.png',
 		group: ['transform'],
 		version: [1],
-		description: 'OpenAI chat model routed through Pay-i proxy for cost tracking and budget enforcement',
+		description:
+			'Anthropic chat model routed through Pay-i proxy for cost tracking and budget enforcement',
 		defaults: {
-			name: 'Pay-i OpenAI (Proxy)',
+			name: 'Pay-i Anthropic (Proxy)',
 		},
 		codex: {
 			categories: ['AI'],
@@ -41,26 +42,26 @@ export class PayiChatModel implements INodeType {
 				required: true,
 			},
 			{
-				name: 'openAiApi',
+				name: 'anthropicApi',
 				required: true,
 			},
 		],
 		properties: [
-			...chatModelFields,
-			...createTrackingFields('openai', 'model'),
+			...chatModelAnthropicFields,
+			...createTrackingFields('anthropic', 'model'),
 		],
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		// Runtime imports — resolved through n8n's VM context, not bundled
-		const { ChatOpenAI } = require('@langchain/openai');
+		const { ChatAnthropic } = require('@langchain/anthropic');
 		const { N8nLlmTracing, makeN8nLlmFailedAttemptHandler } = require('@n8n/ai-utilities');
 
 		const payiCredentials = await this.getCredentials('payiApi');
 		const payiBaseUrl = (payiCredentials.baseUrl as string).replace(/\/+$/, '');
 		const payiApiKey = payiCredentials.apiKey as string;
 
-		const providerCredentials = await this.getCredentials('openAiApi');
+		const providerCredentials = await this.getCredentials('anthropicApi');
 		const providerApiKey = providerCredentials.apiKey as string;
 		const modelName = this.getNodeParameter('model', itemIndex) as string;
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
@@ -88,8 +89,35 @@ export class PayiChatModel implements INodeType {
 		}
 		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
 
-		const timeout = options.timeout as number | undefined;
-		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
+		// Token usage parser for Anthropic response format
+		const tokensUsageParser = (result: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+			const usage = result?.llmOutput?.usage ?? {
+				input_tokens: 0,
+				output_tokens: 0,
+			};
+			return {
+				completionTokens: usage.output_tokens,
+				promptTokens: usage.input_tokens,
+				totalTokens: usage.input_tokens + usage.output_tokens,
+			};
+		};
+
+		// Handle thinking / extended reasoning mode
+		let invocationKwargs: Record<string, unknown> = {};
+		if (options.thinking) {
+			invocationKwargs = {
+				thinking: {
+					type: 'enabled',
+					budget_tokens: (options.thinkingBudget as number) ?? 10000,
+				},
+				max_tokens: (options.maxTokensToSample as number) ?? 4096,
+				temperature: undefined,
+				top_k: undefined,
+				top_p: undefined,
+			};
+		}
+
+		const anthropicBaseUrl = `${payiBaseUrl}/api/v1/proxy/anthropic`;
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
 			...trackingHeaders,
@@ -97,29 +125,42 @@ export class PayiChatModel implements INodeType {
 
 		if (debugLogging) {
 			const mask = (v: string) => v.length <= 8 ? '****' : v.substring(0, 8) + '****';
-			this.logger.info(`[Pay-i OpenAI] ──── DEBUG (item ${itemIndex}) ────`);
-			this.logger.info(`[Pay-i OpenAI] model="${modelName}" baseURL="${baseURL}"`);
+			this.logger.info(`[Pay-i Anthropic] ──── DEBUG (item ${itemIndex}) ────`);
+			this.logger.info(`[Pay-i Anthropic] model="${modelName}" baseURL="${anthropicBaseUrl}"`);
 			const masked = Object.fromEntries(
 				Object.entries(defaultHeaders).map(([k, v]) =>
 					k === 'xProxy-Api-Key' ? [k, mask(v)] : [k, v],
 				),
 			);
-			this.logger.info(`[Pay-i OpenAI] Headers: ${JSON.stringify(masked, null, 2)}`);
+			this.logger.info(`[Pay-i Anthropic] Headers: ${JSON.stringify(masked, null, 2)}`);
+			if (options.thinking) {
+				this.logger.info(`[Pay-i Anthropic] Thinking mode enabled, budget=${(options.thinkingBudget as number) ?? 10000}`);
+			}
 		}
 
-		const model = new ChatOpenAI({
-			apiKey: providerApiKey,
+		const model = new ChatAnthropic({
+			anthropicApiKey: providerApiKey,
 			model: modelName,
-			...options,
-			timeout,
-			maxRetries: (options.maxRetries as number) ?? 2,
-			configuration: {
-				baseURL,
+			anthropicApiUrl: anthropicBaseUrl,
+			maxTokens: options.maxTokensToSample as number | undefined,
+			temperature: options.temperature as number | undefined,
+			topK: options.topK as number | undefined,
+			topP: options.topP as number | undefined,
+			invocationKwargs,
+			clientOptions: {
 				defaultHeaders,
 			},
-			callbacks: [new N8nLlmTracing(this)],
+			callbacks: [new N8nLlmTracing(this, { tokensUsageParser })],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),
 		});
+
+		// Clean up undefined topP / temperature so the SDK doesn't send them
+		if (options.topP === undefined) {
+			delete (model as any).topP; // eslint-disable-line @typescript-eslint/no-explicit-any
+		}
+		if (options.topP !== undefined && options.temperature === undefined) {
+			delete (model as any).temperature; // eslint-disable-line @typescript-eslint/no-explicit-any
+		}
 
 		return {
 			response: model,

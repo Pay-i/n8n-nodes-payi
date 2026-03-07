@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-payi",
-	"version": "0.2.4",
+	"version": "0.3.0",
 	"description": "n8n community node for routing LLM requests through Pay-i proxy with cost tracking and budget enforcement",
 	"keywords": [
 		"n8n-community-node-package",
@@ -37,11 +37,16 @@
 	"n8n": {
 		"n8nNodesApiVersion": 1,
 		"credentials": [
-			"dist/credentials/PayiApi.credentials.js"
+			"dist/credentials/PayiApi.credentials.js",
+			"dist/credentials/DatabricksApi.credentials.js"
 		],
 		"nodes": [
 			"dist/nodes/Payi/Payi.node.js",
-			"dist/nodes/Payi/PayiChatModel.node.js"
+			"dist/nodes/Payi/PayiChatModel.node.js",
+			"dist/nodes/Payi/PayiChatModelAnthropic.node.js",
+			"dist/nodes/Payi/PayiChatModelAzure.node.js",
+			"dist/nodes/Payi/PayiChatModelBedrock.node.js",
+			"dist/nodes/Payi/PayiChatModelDatabricks.node.js"
 		]
 	},
 	"devDependencies": {

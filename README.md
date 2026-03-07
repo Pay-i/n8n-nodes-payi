@@ -4,7 +4,7 @@ n8n community node for [Pay-i](https://pay-i.com) — add cost tracking, budget 
 
 ## What is Pay-i?
 
-[Pay-i](https://pay-i.com) is an AI cost management platform. It sits as a transparent proxy between your application and LLM providers (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, and more), giving you:
+[Pay-i](https://pay-i.com) is an AI cost management platform. It sits as a transparent proxy between your application and LLM providers (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Databricks, and more), giving you:
 
 - **Real-time cost visibility** — See the dollar cost of every LLM request as it happens, broken down by input/output tokens
 - **Budget enforcement** — Set hard spending limits per user, team, use case, or workflow so costs never run away
@@ -13,16 +13,27 @@ n8n community node for [Pay-i](https://pay-i.com) — add cost tracking, budget 
 
 Learn more at [pay-i.com](https://pay-i.com) or read the [Pay-i documentation](https://docs.pay-i.com).
 
-## What Does This Node Do?
+## Nodes
 
-This package provides two n8n nodes that route your LLM requests through the Pay-i proxy:
+This package provides provider-specific chat model nodes and a generic proxy node:
 
-| Node | Use Case |
-|------|----------|
-| **Pay-i Proxy** | Direct HTTP proxy for any supported provider. Drop it into any workflow to send LLM requests through Pay-i with full control over the request body, provider, and model. |
-| **Pay-i Chat Model** | LangChain-compatible chat model that plugs into n8n's **AI Agent** node. Use it to add cost tracking to agent workflows without changing how the agent works. |
+### Chat Model Nodes (LangChain-compatible)
 
-Both nodes automatically send Pay-i tracking headers (user ID, use case, budget limits) so every request is attributed and enforced.
+These nodes plug directly into n8n's **AI Agent** node as a chat model input. Each uses the provider's native n8n credential type — no need to re-enter API keys.
+
+| Node | Provider | Credential | Docs |
+|------|----------|------------|------|
+| **Pay-i OpenAI (Proxy)** | OpenAI | `openAiApi` | [docs/providers/openai.md](docs/providers/openai.md) |
+| **Pay-i Anthropic (Proxy)** | Anthropic | `anthropicApi` | [docs/providers/anthropic.md](docs/providers/anthropic.md) |
+| **Pay-i Azure AI Foundry (Proxy)** | Azure OpenAI | `azureOpenAiApi` | [docs/providers/azure.md](docs/providers/azure.md) |
+| **Pay-i Amazon Bedrock (Proxy)** | AWS Bedrock | `aws` | [docs/providers/bedrock.md](docs/providers/bedrock.md) |
+| **Pay-i Databricks (Proxy)** | Databricks | `databricks` | [docs/providers/databricks.md](docs/providers/databricks.md) |
+
+### Generic Proxy Node
+
+| Node | Description |
+|------|-------------|
+| **Pay-i Proxy** | Direct HTTP proxy for any supported provider. Full control over the request body, provider, and model. Supports OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, and Databricks. |
 
 ## Installation
 
@@ -42,194 +53,73 @@ npm install n8n-nodes-payi
 
 Restart n8n after installing.
 
-> **AI Agent usage:** To use the Pay-i Chat Model with n8n's AI Agent node, start n8n with `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true`.
+> **AI Agent usage:** To use the Pay-i Chat Model nodes with n8n's AI Agent node, start n8n with `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true`.
 
 ## Prerequisites
 
 - A [Pay-i](https://pay-i.com) account and API key
-- An API key for at least one supported LLM provider
-
-## Supported Providers
-
-| Provider | Proxy Path | Auth Header |
-|----------|-----------|-------------|
-| **OpenAI** | `openai/v1/chat/completions` | `Authorization: Bearer <key>` |
-| **Anthropic** | `anthropic/v1/messages` | `x-api-key: <key>` |
-| **Azure OpenAI** | `azure.openai/openai/deployments/{name}/chat/completions` | `api-key: <key>` |
-| **AWS Bedrock** | `aws.bedrock/{region}/model/{modelId}/converse` | `x-amz-access-key-id` + `x-amz-secret-access-key` |
-
-All requests are routed through: `{PAYI_BASE_URL}/api/v1/proxy/{provider_path}`
+- An API key or credential for at least one supported LLM provider
 
 ## Setup
 
 ### 1. Configure Pay-i Credentials
 
-When you first add the Pay-i Proxy node to a workflow, n8n will prompt you to configure credentials:
+When you first add a Pay-i node to a workflow, n8n will prompt you to configure credentials:
 
 - **API Key** — Your Pay-i API key (found in the Pay-i dashboard)
 - **Base URL** — Defaults to `https://api.pay-i.com`. Change this only if you're using a self-hosted Pay-i instance.
 
-The API key is sent to Pay-i via the `xProxy-Api-Key` header on every request.
+### 2. Configure Provider Credentials
 
-### 2. Configure the Node
+Each chat model node uses the provider's native n8n credential type. If you already have credentials configured for the native provider nodes (OpenAI, Anthropic, Azure, etc.), you can reuse them directly — no duplicate credential setup needed.
 
-| Field | Description |
-|-------|-------------|
-| **Provider** | Select the LLM provider (OpenAI, Anthropic, Azure OpenAI, or AWS Bedrock) |
-| **Model Provider API Key** | Your API key for the selected provider |
-| **Model ID** | The model identifier (e.g. `gpt-4o`, `claude-sonnet-4-20250514`, `us.anthropic.claude-3-5-sonnet-20241022-v2:0`) |
-| **Messages** | JSON array of messages in the provider's chat format |
-| **Raw Request Body Override** | Optional — when set, sends this JSON body verbatim, bypassing structured fields |
+### 3. Add the Node to Your Workflow
 
-#### Provider-Specific Fields
-
-**Azure OpenAI** additionally requires:
-- **Azure Deployment Name** — Your Azure OpenAI deployment name
-- **Azure API Version** — API version (default: `2024-02-01`)
-
-**AWS Bedrock** additionally requires:
-- **AWS Secret Access Key** — Your AWS secret key
-- **AWS Session Token** — Optional, for temporary credentials
-- **AWS Region** — AWS region (default: `us-east-1`)
-
-## Pay-i Chat Model (AI Agent Integration)
-
-The **Pay-i Chat Model** node is a LangChain-compatible chat model that plugs into n8n's AI Agent node. It routes OpenAI-compatible requests through the Pay-i proxy.
-
-### Quick Start
-
-1. Add a **Manual Chat Trigger** node
-2. Add an **AI Agent** node and connect the trigger to it
-3. Add a **Pay-i Chat Model** node and connect it to the AI Agent's "Chat Model" input
-4. Configure the Pay-i Chat Model with your Pay-i credentials and OpenAI API key
-
-### Chat Model Fields
-
-| Field | Description |
-|-------|-------------|
-| **Model ID** | OpenAI model identifier (e.g. `gpt-4o`, `gpt-4.1-mini`) |
-| **OpenAI API Key** | Your OpenAI API key (sent as Bearer token through the proxy) |
-| **Options** | Temperature, max tokens, frequency/presence penalty, top P, timeout, max retries |
-
-All [tracking headers](#tracking-headers) (User ID, Use Case, Limits, etc.) are also available on the Chat Model node.
+For AI Agent workflows:
+1. Add a **Chat Trigger** or **Manual Chat Trigger** node
+2. Add an **AI Agent** node
+3. Add the appropriate **Pay-i [Provider] (Proxy)** node and connect it to the AI Agent's "Chat Model" input
+4. Configure the model parameters (model ID, endpoint name, etc.)
 
 ## Tracking Headers
 
-Pay-i uses custom HTTP headers to associate requests with users, use cases, and budgets. All tracking fields are optional.
+Pay-i uses custom HTTP headers to associate requests with users, use cases, and budgets. All tracking fields are optional and have smart defaults.
 
-| Field (Header Name) | Description |
-|---------------------|-------------|
-| **xProxy-User-ID** | User identifier for per-user cost attribution |
-| **xProxy-UseCase-Name** | Use case definition name for tracking and KPI scoring. Defaults to the workflow name. |
-| **xProxy-UseCase-ID** | Unique instance ID. Same name + ID groups requests for KPI evaluation. Defaults to the n8n execution ID. |
+| Field | Default | Description |
+|-------|---------|-------------|
+| **xProxy-User-ID** | _(empty)_ | User identifier for per-user cost attribution |
+| **xProxy-UseCase-Name** | Workflow name | Use case name for tracking and KPI scoring |
+| **xProxy-UseCase-ID** | `{provider}/{model}/{executionId}` | Unique instance ID for grouping requests |
+| **xProxy-UseCase-Step** | Node name on canvas | Step within a multi-step workflow |
+
+### Advanced Tracking (collapsed in UI)
+
+These fields are available under the "Advanced Tracking" section and should typically only be modified with guidance from Pay-i Support:
+
+| Field | Description |
+|-------|-------------|
 | **xProxy-UseCase-Version** | Version of the use case definition |
-| **xProxy-UseCase-Step** | Step within a multi-step use case |
-| **xProxy-UseCase-Properties** | JSON object of key-value properties (e.g. `{"department": "support"}`) |
+| **xProxy-UseCase-Properties** | JSON object of key-value properties |
 | **xProxy-Limit-IDs** | Comma-separated list of Pay-i limit IDs to enforce |
+| **Debug Logging** | Logs request URLs, headers, and routing details to the n8n server console |
 
-### Additional Headers (not in node UI)
+## Supported Proxy Paths
 
-These Pay-i headers are supported by the proxy but not exposed in the node UI. You can send them via the **Raw Request Body Override** or by extending the node:
+All requests are routed through: `{PAYI_BASE_URL}/api/v1/proxy/{provider_path}`
 
-| Header | Description |
-|--------|-------------|
-| `xProxy-Request-Tags` | Comma-separated tags for request correlation |
-| `xProxy-Account-Name` | Account name for multi-tenant tracking |
-| `xProxy-Request-Properties` | JSON object of request-level properties |
-| `xProxy-PriceAs-Category` | Override pricing category |
-| `xProxy-PriceAs-Resource` | Override pricing resource |
-| `xProxy-Resource-Scope` | Resource scope (`global`, `datazone`, `region`) |
-| `xProxy-Provider-BaseUri` | Override provider base URI |
-| `xProxy-Logging-Disable` | Set to `True` to disable prompt/response logging |
+| Provider | Proxy Path |
+|----------|-----------|
+| **OpenAI** | `openai/v1/chat/completions` |
+| **Anthropic** | `anthropic/v1/messages` |
+| **Azure OpenAI** | `azure.openai/openai/deployments/{name}/chat/completions` |
+| **AWS Bedrock** | `aws.bedrock/{region}/model/{modelId}/converse` |
+| **Databricks** | `openai/v1/chat/completions` (reuses OpenAI path with `xProxy-Provider-BaseUri`) |
 
-## Output
+## Migrating Existing Workflows
 
-### Cost Data
-
-When **Include Cost Data** is enabled (default: on), the Pay-i cost tracking response is included in the output as `payiCost`:
-
-```json
-{
-  "id": "chatcmpl-...",
-  "choices": [...],
-  "payiCost": {
-    "request_id": "...",
-    "cost": {
-      "input": { "base": 0.0015 },
-      "output": { "base": 0.002 },
-      "total": { "base": 0.0035 }
-    },
-    "limits": { ... },
-    "user_id": "...",
-    "use_case_name": "..."
-  }
-}
-```
-
-When disabled, the `xproxy_result` field is stripped from the response entirely.
-
-### Full Response
-
-When **Return Full Response** is enabled, the output includes HTTP status code and response headers in addition to the body.
-
-## How It Works
-
-```
-n8n Workflow
-    |
-    v
-[Pay-i Proxy Node]
-    |  1. Builds provider-specific request (URL, headers, body)
-    |  2. Adds Pay-i auth header (xProxy-Api-Key)
-    |  3. Adds tracking headers (user, use case, limits, tags)
-    |
-    v
-Pay-i Proxy (api.pay-i.com/api/v1/proxy/...)
-    |  - Authenticates via xProxy-Api-Key
-    |  - Forwards request to actual provider
-    |  - Tracks cost, usage, and latency
-    |  - Enforces budget limits
-    |  - Returns provider response + xproxy_result
-    |
-    v
-LLM Provider (OpenAI, Anthropic, Azure, Bedrock)
-    |
-    v
-Response flows back through Pay-i -> n8n
-    |  - Cost data extracted into payiCost (if enabled)
-    |  - xproxy_result stripped from output (if cost data disabled)
-```
-
-## Cross-Reference with Pay-i Documentation
-
-This node implements the [Pay-i proxy pattern](https://docs.pay-i.com) using the same URL paths and header conventions as the official Pay-i SDKs:
-
-- **Python SDK**: [pay-i-python](https://github.com/Pay-i/pay-i-python) — `payi_openai_url()`, `payi_anthropic_url()`, etc.
-- **TypeScript SDK**: [pay-i-typescript](https://github.com/Pay-i/pay-i-typescript) — `XproxyResult` type, header definitions
-
-### Verified Against SDK Sources
-
-| Item | SDK Value | Node Implementation |
-|------|-----------|---------------------|
-| Auth header | `xProxy-Api-Key` | `xProxy-api-key` (case-insensitive) |
-| OpenAI base | `/api/v1/proxy/openai/v1` | `openai/v1/chat/completions` |
-| Anthropic base | `/api/v1/proxy/anthropic` | `anthropic/v1/messages` |
-| Azure OpenAI base | `/api/v1/proxy/azure.openai` | `azure.openai/openai/deployments/...` |
-| AWS Bedrock base | `/api/v1/proxy/aws.bedrock` | `aws.bedrock/{region}/model/{model}/converse` |
-| Response field | `xproxy_result` | `xproxy_result` (renamed to `payiCost`) |
-| Cost structure | `XproxyResult.Cost` | Passed through as-is |
-
-### Not Yet Supported
-
-- **Google Vertex AI** — Commented out in the Pay-i Python SDK; will be added when officially supported
-- **Azure Anthropic** — Supported by Pay-i (`/api/v1/proxy/azure.anthropic`) but not yet in this node
-
-## Migrating Existing Workflows to Pay-i
-
-Already have n8n workflows calling OpenAI, Anthropic, or other LLM providers? The **[payi-n8n-toolkit](https://github.com/pay-i/payi-n8n-toolkit)** tool can scan your n8n instance, find native LLM nodes, and replace them with Pay-i equivalents — rewiring all connections and expression references automatically.
+Already have n8n workflows calling OpenAI, Anthropic, Databricks, or other LLM providers natively? The **[payi-n8n-toolkit](https://github.com/pay-i/payi-n8n-toolkit)** can scan your n8n instance, find native LLM nodes, and replace them with Pay-i equivalents — rewiring all connections and credentials automatically.
 
 ```bash
-# Quick start
 export N8N_BASE_URL=http://localhost:5678
 export N8N_API_KEY=your-n8n-api-key
 export PAYI_BASE_URL=https://api.yourcompany.pay-i.com
@@ -239,38 +129,21 @@ python3 migrate-workflows-to-payi.py --dry-run   # preview changes
 python3 migrate-workflows-to-payi.py              # run migration
 ```
 
-See the [payi-n8n-toolkit README](https://github.com/pay-i/payi-n8n-toolkit) for full documentation, CLI options, and credential redirect scripts.
-
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Watch mode
-npm run dev
-
-# Lint
-npm run lint
-npm run lint:fix
+npm install     # Install dependencies
+npm run build   # Build
+npm run dev     # Watch mode
+npm run lint    # Lint
 ```
 
 ### Local Testing
 
 ```bash
-# Pack the node
 npm pack
-
-# Install into n8n
-cd ~/.n8n/nodes
-npm install /path/to/n8n-nodes-payi-0.2.0.tgz
-
-# Clear n8n cache (important after updates)
-rm -rf ~/.n8n/.cache
-
+cd ~/.n8n/nodes && npm install /path/to/n8n-nodes-payi-*.tgz
+rm -rf ~/.n8n/.cache   # Clear n8n cache after updates
 # Restart n8n
 ```
 

@@ -9,7 +9,7 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import {
 	providerFields,
-	trackingFields,
+	createTrackingFields,
 	outputFields,
 } from './descriptions';
 import { buildProviderRequest } from './providers';
@@ -105,7 +105,7 @@ export class Payi implements INodeType {
 				description:
 					'When set, this JSON body is sent directly to the API, bypassing all structured fields above',
 			},
-			...trackingFields,
+			...createTrackingFields('proxy', 'model'),
 			...outputFields,
 		],
 	};
@@ -148,10 +148,12 @@ export class Payi implements INodeType {
 				const userId = this.getNodeParameter('userId', i, '') as string;
 				const useCaseName = this.getNodeParameter('useCaseName', i, '') as string;
 				const useCaseId = this.getNodeParameter('useCaseId', i, '') as string;
-				const useCaseVersion = this.getNodeParameter('useCaseVersion', i, '') as string;
+				// Advanced tracking fields (collapsed in UI under "Advanced Tracking")
+				const advancedTracking = this.getNodeParameter('advancedTracking', i, {}) as Record<string, string>;
+				const useCaseVersion = advancedTracking.useCaseVersion || '';
 				const useCaseStep = this.getNodeParameter('useCaseStep', i, '') as string;
-				const useCaseProperties = this.getNodeParameter('useCaseProperties', i, '') as string;
-				const limitIds = this.getNodeParameter('limitIds', i, '') as string;
+				const useCaseProperties = advancedTracking.useCaseProperties || '';
+				const limitIds = advancedTracking.limitIds || '';
 
 				const trackingHeaders: Record<string, string> = {};
 				if (userId) trackingHeaders['xProxy-User-ID'] = sanitizeHeaderValue(userId);
