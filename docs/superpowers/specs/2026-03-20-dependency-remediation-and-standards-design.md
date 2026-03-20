@@ -1,7 +1,7 @@
 # Design: n8n-nodes-payi Dependency Remediation and Project Standards
 
 **Date:** 2026-03-20
-**Status:** Draft
+**Status:** Approved
 **Repo:** `Pay-i/n8n-nodes-payi`
 **Current version:** 0.3.0
 
@@ -42,16 +42,17 @@ function buildIcons() {
 exports['build:icons'] = buildIcons;
 ```
 
-The `npm run build` script calls `tsc && gulp build:icons`.
+The `npm run build` script calls `npm run clean && tsc && gulp build:icons`.
 
 ### Design
 
-Replace `gulp build:icons` with a standalone Node.js script at `scripts/copy-icons.js` that:
+Replace `gulp build:icons` with a standalone Node.js script at `scripts/copy-icons.js` that uses only `node:fs` and `node:path` (no new dependencies):
 
-1. Uses `fs.cpSync` (Node 18+ stdlib — no new dependencies) or `fs` + `path` with a recursive glob
-2. Finds all `*.svg` and `*.png` files under `nodes/`
-3. Copies them to the equivalent path under `dist/nodes/`, preserving directory structure
-4. Logs what it copied for build visibility
+1. Recursively walks the `nodes/` directory tree using `fs.readdirSync(..., { recursive: true })`
+2. Filters for files ending in `.svg` or `.png` only
+3. For each match, creates the destination directory under `dist/nodes/` with `fs.mkdirSync(..., { recursive: true })`
+4. Copies the file with `fs.copyFileSync()`
+5. Logs each copied file for build visibility
 
 Update `package.json`:
 - Change `"build"` script from `npm run clean && tsc && gulp build:icons` to `npm run clean && tsc && node scripts/copy-icons.js`
@@ -83,11 +84,13 @@ Update `package.json`:
 
 Install:
 - `eslint@^9` (latest 9.x)
-- `typescript-eslint@^8` (replaces `@typescript-eslint/parser` — the v8 package is the eslint 9 compatible version)
+- `typescript-eslint@^8` — the unified package that bundles parser, plugin, and config helpers. This replaces the old split-package model. Verify compatibility with `npm info typescript-eslint` at implementation time.
 
-Remove:
+Remove only:
 - `eslint@~8.57.0`
 - `@typescript-eslint/parser@~7.18.0`
+
+Note: `@typescript-eslint/eslint-plugin` is not present in this repo's `package.json` and does not need to be removed.
 
 Create `eslint.config.mjs`:
 
@@ -123,9 +126,9 @@ Update `package.json` lint scripts:
 
 ### Verification
 
-- `npm run lint` runs without errors (or shows only pre-existing code issues)
+- `npm run lint` runs with zero errors
 - `npm run lint:fix` applies fixes correctly
-- No new lint rules break the build unexpectedly
+- If `tseslint.configs.recommended` flags existing code, suppressions must be targeted (inline `// eslint-disable` or rule override in config), documented with a comment explaining why, and must not mask genuine bugs
 
 ---
 
@@ -163,14 +166,14 @@ Create `SBOM.md` with:
 
 ### 4c. CHANGELOG.md Update
 
-The current CHANGELOG stops at v0.2.0. Backfill entries for v0.2.1 through v0.3.0 using git log history, then add an `[Unreleased]` section for this work. Follow Keep a Changelog format.
+The current CHANGELOG stops at v0.2.0 and uses a non-standard format (`## 0.2.0 (2026-02-23)` instead of `## [0.2.0] - 2026-02-23`). Reformat existing entries to proper Keep a Changelog bracketed format. Backfill entries for v0.2.1 through v0.3.0 using git log history, then add an `[Unreleased]` section for this work.
 
 ### 4d. .gitignore Expansion
 
 Add standard entries for:
 - OS/IDE artifacts (`.DS_Store`, `.vscode/`, `.idea/`, `*.swp`)
 - Environment files (`.env`, `.env.local`, `!.env.example`, `!.env.op`)
-- Coverage artifacts (`.coverage`, `htmlcov/`)
+- Coverage artifacts (`coverage/` — Node.js/Jest/c8 convention)
 - `todos/` directory
 - Build artifacts already covered (`dist/`, `node_modules/`, `*.tgz`)
 
@@ -200,7 +203,7 @@ Run in order — all must pass before the work is considered complete:
 3. `npm run lint:fix` — auto-fix works
 4. `npm pack` — package contents correct (only `dist/` shipped)
 5. `npm audit` — zero vulnerabilities
-6. Verify `dist/nodes/Payi/payi_logo.png` exists in packed output
+6. Run `tar tzf n8n-nodes-payi-*.tgz | grep payi_logo.png` to confirm the icon is present in the packed artifact
 
 ---
 
