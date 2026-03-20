@@ -24,7 +24,7 @@
 	"main": "index.js",
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "npm run clean && tsc && gulp build:icons",
+		"build": "npm run clean && tsc && node scripts/copy-icons.js",
 		"dev": "tsc --watch",
 		"format": "prettier nodes credentials --write",
 		"lint": "eslint nodes credentials --ext .ts",
@@ -52,7 +52,6 @@
 	"devDependencies": {
 		"@typescript-eslint/parser": "~7.18.0",
 		"eslint": "~8.57.0",
-		"gulp": "^4.0.2",
 		"n8n-workflow": "*",
 		"prettier": "~3.3.0",
 		"typescript": "~5.5.0"
