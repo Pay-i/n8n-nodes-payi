@@ -1,6 +1,28 @@
-dist
-node_modules
-.DS_Store
+# Build output
+dist/
 *.tgz
-*.mp4
+
+# Dependencies
+node_modules/
+
+# OS and IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.local
+!.env.example
+!.env.op
+
+# Coverage
+coverage/
+
+# Project internals
+todos/
 Plans and Docs/
+*.mp4
