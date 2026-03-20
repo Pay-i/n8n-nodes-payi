@@ -27,8 +27,8 @@
 		"build": "npm run clean && tsc && node scripts/copy-icons.js",
 		"dev": "tsc --watch",
 		"format": "prettier nodes credentials --write",
-		"lint": "eslint nodes credentials --ext .ts",
-		"lint:fix": "eslint nodes credentials --ext .ts --fix",
+		"lint": "eslint nodes credentials",
+		"lint:fix": "eslint nodes credentials --fix",
 		"prepublishOnly": "npm run build"
 	},
 	"files": [
@@ -50,11 +50,11 @@
 		]
 	},
 	"devDependencies": {
-		"@typescript-eslint/parser": "~7.18.0",
-		"eslint": "~8.57.0",
+		"eslint": "^10.1.0",
 		"n8n-workflow": "*",
 		"prettier": "~3.3.0",
-		"typescript": "~5.5.0"
+		"typescript": "~5.5.0",
+		"typescript-eslint": "^8.57.1"
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"

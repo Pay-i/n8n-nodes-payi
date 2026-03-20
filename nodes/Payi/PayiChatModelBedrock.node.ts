@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+ 
 import type {
 	INodeType,
 	INodeTypeDescription,
