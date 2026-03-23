@@ -132,10 +132,12 @@ python3 migrate-workflows-to-payi.py              # run migration
 ## Development
 
 ```bash
-npm install     # Install dependencies
-npm run build   # Build
-npm run dev     # Watch mode
-npm run lint    # Lint
+npm install       # Install dependencies
+npm run build     # Clean, compile TypeScript, copy icons
+npm run dev       # TypeScript watch mode
+npm run lint      # ESLint (TypeScript rules)
+npm run lint:fix  # ESLint with auto-fix
+npm run format    # Prettier
 ```
 
 ### Local Testing
