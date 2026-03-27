@@ -62,6 +62,8 @@ Restart n8n after installing.
 
 ## Setup
 
+> **Self-hosted deployment?** For detailed instructions including Docker installation, dedicated Pay-i instance configuration, and troubleshooting, see the [Deployment & Configuration Guide](docs/deployment-guide.md).
+
 ### 1. Configure Pay-i Credentials
 
 When you first add a Pay-i node to a workflow, n8n will prompt you to configure credentials:

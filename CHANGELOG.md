@@ -6,15 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- Deployment & Configuration Guide for self-hosted n8n (`docs/deployment-guide.md`)
+- `CLAUDE.md` project guidance
+- `SBOM.md` software bill of materials
+
 ### Changed
+- OpenAI provider doc upgraded to full depth with pricing context and model reference
+- Anthropic provider doc expanded with pricing context and extended thinking details
+- Azure provider doc upgraded with prominent endpoint resolution guide and pricing context
+- Bedrock provider doc expanded with detailed proxy routing explanation and pricing context
 - Removed `gulp` dependency — icon copying now uses a zero-dependency Node.js script
 - Upgraded `eslint` from 8.57 to 10.x with flat config (`eslint.config.mjs`)
 - Replaced `@typescript-eslint/parser` with unified `typescript-eslint` v8 package
 - Expanded `.gitignore` to project standards
-
-### Added
-- `CLAUDE.md` project guidance
-- `SBOM.md` software bill of materials
 
 ### Security
 - Resolved all 14 npm audit vulnerabilities (6 high, 8 moderate)
