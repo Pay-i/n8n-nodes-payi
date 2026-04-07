@@ -7,11 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- External codex metadata file (`Payi.node.json`) for n8n Cloud scanner
+- Credential icons for Pay-i API and Databricks API credential types
+- `build:selfhosted` script for self-hosted n8n installations with all nodes
+- `authenticate` block on Databricks API credentials
 - Deployment & Configuration Guide for self-hosted n8n (`docs/deployment-guide.md`)
 - `CLAUDE.md` project guidance
 - `SBOM.md` software bill of materials
 
 ### Changed
+- Package ships single proxy node (`Payi.node.ts`) for n8n Cloud compatibility
+- HTTP errors now throw `NodeApiError` instead of `NodeOperationError`
+- Asset copy script now handles credentials directory and `.json` files
 - OpenAI provider doc upgraded to full depth with pricing context and model reference
 - Anthropic provider doc expanded with pricing context and extended thinking details
 - Azure provider doc upgraded with prominent endpoint resolution guide and pricing context
