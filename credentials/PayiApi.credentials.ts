@@ -3,12 +3,15 @@ import {
 	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
+	Icon,
 } from 'n8n-workflow';
 
 export class PayiApi implements ICredentialType {
 	name = 'payiApi';
 
 	displayName = 'Pay-i API';
+
+	icon: Icon = 'file:payi_logo.png';
 
 	documentationUrl = 'https://docs.pay-i.com';
 
