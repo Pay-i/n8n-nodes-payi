@@ -1,0 +1,11 @@
+{
+	"node": "n8n-nodes-payi.payi",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Utility"],
+	"resources": {
+		"primaryDocumentation": [
+			{ "url": "https://docs.pay-i.com" }
+		]
+	}
+}
