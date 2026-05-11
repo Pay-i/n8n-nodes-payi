@@ -56,7 +56,7 @@ If your Azure resource lives in a sovereign cloud or custom domain, always set t
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| Deployment Name | Yes | — | The Azure deployment name (e.g. `gpt-4o-deployment`). Must match the name in Azure AI Foundry exactly. |
+| Deployment Name | Yes | — | The Azure deployment name (for example, `gpt-4o-deployment`). Must match the name in Azure AI Foundry exactly. |
 | API Version | No | `2024-08-01-preview` | Azure OpenAI API version string. See fallback chain below. |
 
 ### API Version Fallback Chain

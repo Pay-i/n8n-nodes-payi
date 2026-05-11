@@ -25,7 +25,7 @@ The OpenAI credential provides the API key (`apiKey`) used as the `Authorization
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| Model | Yes | `gpt-4o` | OpenAI model ID (e.g. `gpt-4o`, `gpt-5.2`, `o3-mini`). The node does not validate model IDs — any string is forwarded as-is. |
+| Model | Yes | `gpt-4o` | OpenAI model ID (for example, `gpt-4o`, `gpt-4o-mini`, or `o3-mini`). The node does not validate model IDs — any string is forwarded as-is. |
 
 ### Options (collapsed)
 
@@ -65,9 +65,9 @@ The following headers are included in every request when their corresponding nod
 |--------|------------|---------------|
 | `xProxy-Api-Key` | _(Pay-i credential)_ | Required — always sent |
 | `xProxy-User-ID` | User ID | _(empty, omitted)_ |
-| `xProxy-UseCase-Name` | UseCase Name | `$workflow.name` (spaces → hyphens) |
-| `xProxy-UseCase-ID` | UseCase ID | `openai/{model}/{executionId}` |
-| `xProxy-UseCase-Step` | UseCase Step | Node name on canvas |
+| `xProxy-UseCase-Name` | Use Case Name | `$workflow.name` (spaces → hyphens) |
+| `xProxy-UseCase-ID` | Use Case ID | `openai/{model}/{executionId}` |
+| `xProxy-UseCase-Step` | Use Case Step | Node name on canvas |
 
 Advanced tracking headers (`xProxy-UseCase-Version`, `xProxy-UseCase-Properties`, `xProxy-Limit-IDs`) are available under the **Advanced Tracking** collection and should only be modified with guidance from Pay-i Support.
 
@@ -79,7 +79,7 @@ The node does not validate or enumerate model IDs — any string entered in the 
 |----------|-------|
 | `gpt-4o` | Default. Strong reasoning, multimodal input |
 | `gpt-4o-mini` | Smaller, faster, lower cost |
-| `gpt-5.2` | Latest generation (check OpenAI availability) |
+| `gpt-4.1` | Latest generation — verify availability on your OpenAI account |
 | `o3-mini` | Reasoning-optimized compact model |
 
 ## Known Limitations
@@ -90,7 +90,7 @@ The node does not validate or enumerate model IDs — any string entered in the 
 
 OpenAI charges per token, billed separately for input (prompt) and output (completion). Rates vary by model and are updated periodically on the [OpenAI pricing page](https://openai.com/api/pricing/).
 
-Pay-i tracks both input and output token counts on every request and converts them to actual dollar cost using the current rate table for the model. The Pay-i dashboard shows per-request cost, per-user cost, and aggregate spend broken down by model and use case.
+Pay-i tracks both input and output token counts on every request and converts them to actual dollar cost using the current rate table for the model. The Pay-i dashboard shows per-request cost, per-user cost, and aggregate spend broken down by model and Use Case.
 
 Unlike DBU-based pricing (see [Databricks](databricks.md)), OpenAI pricing is a direct per-token dollar rate with no intermediate unit conversion.
 

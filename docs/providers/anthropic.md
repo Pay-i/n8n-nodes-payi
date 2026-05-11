@@ -106,7 +106,7 @@ Thinking tokens are billed by Anthropic at the **output token rate** — the sam
 
 Pay-i tracks thinking tokens through the custom token usage parser (`llmOutput.usage.input_tokens` + `output_tokens`), so thinking costs appear correctly in Pay-i's cost dashboards and are counted against any active budget limits.
 
-**Practical guidance:** Start with the default 10,000-token budget and monitor Pay-i's token usage dashboard before increasing it. For production workflows, set a budget limit in Pay-i to cap spending if thinking consumption exceeds expectations.
+**Practical guidance:** Start with the default 10,000-token budget and monitor Pay-i's token usage dashboard before increasing it. For production workflows, set a Limit in Pay-i to cap spending if thinking consumption exceeds expectations.
 
 ## Anthropic Pricing
 
@@ -116,9 +116,9 @@ Key billing points for this node:
 
 - **Input tokens** — prompt text, conversation history, system prompts.
 - **Output tokens** — the visible model response.
-- **Thinking tokens** — billed at the output token rate; tracked separately by Pay-i. They do not appear in the response but count against your Anthropic invoice and any Pay-i budget limits.
+- **Thinking tokens** — billed at the output token rate; tracked separately by Pay-i. They do not appear in the response but count against your Anthropic invoice and any active Pay-i Limits.
 
-Pay-i records all three token categories (via the custom `tokensUsageParser`) and surfaces them in cost breakdowns and use-case rollups.
+Pay-i records all three token categories (via the custom `tokensUsageParser`) and surfaces them in cost breakdowns and Use Case rollups.
 
 ## Migration
 

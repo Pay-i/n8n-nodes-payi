@@ -65,20 +65,21 @@ export async function buildProviderRequest(
 		}
 
 		case 'databricks': {
-			const workspaceUrl = (context.getNodeParameter('databricksWorkspaceUrl', itemIndex) as string).replace(/\/+$/, '');
+			const databricksCredentials = await context.getCredentials('databricksApi');
+			const accessToken = databricksCredentials.accessToken as string;
+			const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 			const endpointName = context.getNodeParameter('databricksEndpointName', itemIndex) as string;
 			const cloudProvider = context.getNodeParameter('databricksCloudProvider', itemIndex) as string;
-			// Derive AI Gateway URL from workspace URL
-			const gatewayUrl = workspaceUrl.replace(
-				/^(https:\/\/[^.]+)\.(cloud\.databricks\.com|azuredatabricks\.net)/,
-				'$1.ai-gateway.$2',
-			) + '/mlflow';
+			// Databricks Model Serving exposes its OpenAI-compatible chat endpoint at
+			// `<workspace>/serving-endpoints/chat/completions`. The proxy appends
+			// `/chat/completions`, so the BaseUri is `<workspace>/serving-endpoints`.
+			const providerBaseUri = `${workspaceUrl}/serving-endpoints`;
 			return {
 				urlPath: 'openai/v1/chat/completions',
 				body: { model: endpointName },
 				headers: {
-					Authorization: `Bearer ${apiKey}`,
-					'xProxy-Provider-BaseUri': gatewayUrl,
+					Authorization: `Bearer ${accessToken}`,
+					'xProxy-Provider-BaseUri': providerBaseUri,
 					'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
 				},
 				method: 'POST',

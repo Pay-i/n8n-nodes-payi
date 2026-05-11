@@ -58,7 +58,7 @@ Choose the path that matches how your n8n instance is managed.
 
 This is the simplest path for instances managed through the n8n web interface.
 
-1. Open n8n and go to **Settings → Community Nodes**.
+1. Open n8n and go to **Settings > Community Nodes**.
 2. Click **Install**.
 3. Enter the package name: `n8n-nodes-payi`
 4. Accept the community node security prompt.
@@ -80,6 +80,8 @@ RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-payi
 USER node
 RUN rm -rf /home/node/.n8n/.cache
 ```
+
+> **Production note:** The example above uses `n8nio/n8n:latest`. For production deployments, pin to a specific n8n version tag (for example, `n8nio/n8n:1.85.0`) to prevent unintended upgrades from breaking your workflows.
 
 Build and tag this image, then reference it in your compose file.
 
@@ -142,7 +144,7 @@ For bare-metal starts via shell script, add:
 export N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
 ```
 
-before the `n8n start` invocation.
+before running `n8n start`.
 
 ---
 
@@ -154,7 +156,7 @@ Pay-i nodes require two credentials per workflow: one for Pay-i itself, and one 
 
 **Credential type:** `Pay-i API` (provided by this community node)
 
-Navigate to **Settings → Credentials → New Credential → Pay-i API**.
+Navigate to **Settings > Credentials > New Credential > Pay-i API**.
 
 | Field | Value | Notes |
 |-------|-------|-------|
@@ -196,7 +198,7 @@ If you already have an Anthropic credential in n8n, reuse it.
 | Field | Value | Notes |
 |-------|-------|-------|
 | Resource Name | Your Azure OpenAI resource name | e.g., `my-openai-resource` |
-| API Key | Your Azure OpenAI API key | From Azure portal → your resource → Keys and Endpoint |
+| API Key | Your Azure OpenAI API key | From Azure portal > your resource > Keys and Endpoint |
 | API Version | e.g., `2024-08-01-preview` | Can also be set per-node in the node parameters |
 
 > **Endpoint resolution note:** The Pay-i Azure node constructs the upstream endpoint from your resource name using the standard Azure pattern (`https://<resource-name>.openai.azure.com`). If your Azure deployment uses a custom domain or a non-standard endpoint URL, enter the full endpoint URL in the Resource Name field instead of just the resource name — the node handles both forms.
@@ -222,12 +224,12 @@ AWS SigV4 request signing is handled automatically by the Pay-i Bedrock node. Yo
 
 **Credential type:** `Databricks API` (provided by the `n8n-nodes-databricks` community node)
 
-> **Dependency note:** The Databricks credential type is defined by the `n8n-nodes-databricks` community node, not by `n8n-nodes-payi`. You must install `n8n-nodes-databricks` before the Databricks credential type appears in n8n. Install it the same way as this package (Settings → Community Nodes → Install → `n8n-nodes-databricks`).
+> **Dependency note:** The Databricks credential type is defined by the `n8n-nodes-databricks` community node, not by `n8n-nodes-payi`. You must install `n8n-nodes-databricks` before the Databricks credential type appears in n8n. Install it the same way as this package (Settings > Community Nodes > Install > `n8n-nodes-databricks`).
 
 | Field | Value | Notes |
 |-------|-------|-------|
 | Workspace URL | `https://your-workspace.azuredatabricks.net` | Full URL including scheme, no trailing slash |
-| Personal Access Token | Your Databricks PAT | Generate from Databricks UI: User Settings → Developer → Access Tokens |
+| Personal Access Token | Your Databricks PAT | Generate from Databricks UI: User Settings > Developer > Access Tokens |
 
 ---
 
@@ -307,9 +309,9 @@ Pay-i's value comes from being able to slice cost and usage data in ways that ma
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Use Case Version | string | Track model or prompt versions — useful when A/B testing prompts. e.g., `v2.1-chain-of-thought` |
-| Use Case Properties | JSON object | Arbitrary key-value metadata for filtering in the dashboard. e.g., `{"team": "finance", "env": "prod"}` |
-| Limit IDs | string (comma-separated) | Associate this request with one or more Pay-i budget limits by ID |
+| Use Case Version | string | Track model or prompt versions — useful when A/B testing prompts. For example, `v2.1-chain-of-thought` |
+| Use Case Properties | JSON object | Arbitrary key-value metadata for filtering in the dashboard. For example, `{"team": "finance", "env": "prod"}` |
+| Limit IDs | string (comma-separated) | Associate this request with one or more Pay-i Limits by ID |
 | Debug Logging | boolean | Emit request details to n8n execution log. Enable during setup and troubleshooting; disable in production to reduce log volume |
 
 ### Practical Setup Recommendations
@@ -346,7 +348,7 @@ Before investigating any issue, turn on Debug Logging in the Pay-i node's Option
 | No data in Pay-i dashboard | Workflows succeed but usage doesn't appear | Base URL is incorrect — requests are reaching the wrong endpoint | Enable Debug Logging and confirm the `baseURL` in the log matches your dedicated instance |
 | Azure `DeploymentNotFound` | Azure requests fail with deployment not found error | Deployment name doesn't match, or endpoint resolution is wrong | Verify the deployment name in Azure portal; if using a custom domain, enter the full endpoint URL in the credential's Resource Name field |
 | Bedrock signature mismatch | AWS requests fail with signature errors | Region in credential doesn't match the region where the model is enabled | Confirm the region in your AWS credential matches your Bedrock model deployment region |
-| Databricks `RESOURCE_DOES_NOT_EXIST` | Databricks requests fail with resource error | Workspace URL is incorrect or the model serving endpoint doesn't exist | Confirm the full workspace URL (including `https://`); verify the endpoint exists in Databricks UI → Serving |
+| Databricks `RESOURCE_DOES_NOT_EXIST` | Databricks requests fail with resource error | Workspace URL is incorrect or the model serving endpoint doesn't exist | Confirm the full workspace URL (including `https://`); verify the endpoint exists in Databricks UI > Serving |
 | Network timeout | Requests time out with no response | Firewall or network policy blocking outbound HTTPS from n8n host to Pay-i | Confirm the n8n host can reach your Pay-i Base URL on port 443: `curl -v https://api.yourcompany.pay-i.com` |
 
 ### Getting Help
@@ -355,7 +357,7 @@ If the table above doesn't resolve your issue, contact Pay-i support with the de
 
 | Channel | Link |
 |---------|------|
-| Email | support@pay-i.com |
+| Email | [support@pay-i.com](mailto:support@pay-i.com) |
 | Support portal | [https://www.pay-i.com/support](https://www.pay-i.com/support) |
 | GitHub Issues | [https://github.com/Pay-i/n8n-nodes-payi/issues](https://github.com/Pay-i/n8n-nodes-payi/issues) |
 

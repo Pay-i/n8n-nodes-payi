@@ -25,7 +25,7 @@ The AWS credential provides the Access Key ID, Secret Access Key, optional Sessi
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| Model | Yes | `anthropic.claude-3-5-sonnet-20241022-v2:0` | Bedrock model ID (e.g. `anthropic.claude-3-5-sonnet-20241022-v2:0`, `amazon.titan-text-express-v1`) |
+| Model | Yes | `anthropic.claude-3-5-sonnet-20241022-v2:0` | Bedrock model ID (for example, `anthropic.claude-3-5-sonnet-20241022-v2:0` or `amazon.titan-text-express-v1`) |
 | Region | No | From AWS credential (falls back to `us-east-1`) | AWS region for the Bedrock endpoint |
 
 ### Options (collapsed)
@@ -54,9 +54,7 @@ n8n Workflow
 
 The node uses `ChatBedrockConverse` from `@langchain/aws` with `endpointHost` pointed at the Pay-i proxy (hostname only — no `https://` prefix). AWS credentials are passed directly to the LangChain client for SigV4 signing. Pay-i receives the signed request and forwards it to the real Bedrock endpoint in the specified region.
 
-## Proxy Routing — WHY BEDROCK IS DIFFERENT
-
-This is the most important thing to understand about this node.
+## Proxy Routing
 
 Every other Pay-i provider node (`ChatOpenAI`, `ChatAnthropic`, `ChatOpenAI`-via-Databricks) accepts a `baseURL` parameter — a full URL including protocol (`https://...`). Bedrock does not. `ChatBedrockConverse` uses `endpointHost`, which must be a **hostname only**, with no protocol prefix. `ChatBedrockConverse` prepends `https://` internally.
 
@@ -98,7 +96,7 @@ AWS SigV4 signing happens inside the LangChain `ChatBedrockConverse` client usin
 
 1. **The LangChain client signs the request targeting the Pay-i proxy host** — not the real Bedrock endpoint. The `Authorization` header is computed against `api.yourcompany.pay-i.com/api/v1/proxy/aws.bedrock/...`.
 2. **Pay-i receives the signed request** with the `xProxy-Api-Key` header and the AWS `Authorization` header, validates the Pay-i key, records the request for cost tracking, and forwards the full signed request to the real Bedrock endpoint.
-3. **The AWS credentials never leave your n8n instance unencrypted.** The Access Key ID appears in the `Authorization` header as part of the signing credential string; the Secret Access Key is used only to compute the HMAC signature and is never sent over the wire.
+3. **Your AWS Secret Access Key never leaves your n8n instance.** It is used only to compute the HMAC signature and is never transmitted. The Access Key ID appears in the `Authorization` header as part of the SigV4 credential string, but carries no privileged capabilities on its own.
 
 If you encounter SigV4 signing errors (e.g., `InvalidSignatureException`), verify that:
 - The region in the node matches the region configured in the AWS credential.
@@ -117,7 +115,7 @@ Amazon Bedrock charges per token, with rates that vary by model family, model ve
 | Provisioned Throughput | Reserve model throughput for consistent latency. Charged hourly. |
 | Batch Inference | Asynchronous processing at reduced per-token rates. |
 
-Pay-i records token counts and estimated cost for every request. Costs are visible in the Pay-i dashboard per user, use case, and time period.
+Pay-i records token counts and estimated cost for every request. Costs are visible in the Pay-i dashboard per user, Use Case, and time period.
 
 For current per-token rates by model and region, see the [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/).
 

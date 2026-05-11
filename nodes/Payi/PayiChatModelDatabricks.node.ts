@@ -14,21 +14,11 @@ import { createTrackingFields } from './descriptions/trackingFields';
 // Declared here so TypeScript accepts the require() calls.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-/**
- * Derive the Databricks AI Gateway URL from a workspace URL.
- *
- * Examples:
- *   https://1234567890.cloud.databricks.com  →  https://1234567890.ai-gateway.cloud.databricks.com/mlflow
- *   https://adb-1234567890.azuredatabricks.net  →  https://adb-1234567890.ai-gateway.azuredatabricks.net/mlflow
- */
-function deriveGatewayUrl(workspaceUrl: string): string {
-	const trimmed = workspaceUrl.replace(/\/+$/, '');
-	return (
-		trimmed.replace(
-			/^(https:\/\/[^.]+)\.(cloud\.databricks\.com|azuredatabricks\.net)/,
-			'$1.ai-gateway.$2',
-		) + '/mlflow'
-	);
+// Databricks Model Serving exposes its OpenAI-compatible chat endpoint at
+// `<workspace>/serving-endpoints/chat/completions`. The OpenAI client appends
+// `/chat/completions`, so the base URI we hand Pay-i is `<workspace>/serving-endpoints`.
+function deriveServingEndpointsUrl(workspaceUrl: string): string {
+	return workspaceUrl.replace(/\/+$/, '') + '/serving-endpoints';
 }
 
 export class PayiChatModelDatabricks implements INodeType {
@@ -59,7 +49,7 @@ export class PayiChatModelDatabricks implements INodeType {
 				required: true,
 			},
 			{
-				name: 'databricks',
+				name: 'databricksApi',
 				required: true,
 			},
 		],
@@ -80,10 +70,9 @@ export class PayiChatModelDatabricks implements INodeType {
 		const payiBaseUrl = (payiCredentials.baseUrl as string).replace(/\/+$/, '');
 		const payiApiKey = payiCredentials.apiKey as string;
 
-		// Native Databricks credential type (from n8n-nodes-databricks) uses 'host' and 'token'
-		const databricksCredentials = await this.getCredentials('databricks');
-		const accessToken = databricksCredentials.token as string;
-		const workspaceUrl = (databricksCredentials.host as string).replace(/\/+$/, '');
+		const databricksCredentials = await this.getCredentials('databricksApi');
+		const accessToken = databricksCredentials.accessToken as string;
+		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
 		const endpointName = this.getNodeParameter('endpointName', itemIndex) as string;
 		const cloudProvider = this.getNodeParameter('cloudProvider', itemIndex) as string;
@@ -114,15 +103,14 @@ export class PayiChatModelDatabricks implements INodeType {
 
 		const timeout = options.timeout as number | undefined;
 
-		// Derive the AI Gateway URL from the workspace URL
-		const gatewayUrl = deriveGatewayUrl(workspaceUrl);
+		const providerBaseUri = deriveServingEndpointsUrl(workspaceUrl);
 
 		// Route through Pay-i's OpenAI proxy path (Databricks is OpenAI-compatible)
 		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
 
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
-			'xProxy-Provider-BaseUri': gatewayUrl,
+			'xProxy-Provider-BaseUri': providerBaseUri,
 			'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
 			Authorization: `Bearer ${accessToken}`,
 			...trackingHeaders,
@@ -132,7 +120,7 @@ export class PayiChatModelDatabricks implements INodeType {
 			const mask = (v: string) => v.length <= 8 ? '****' : v.substring(0, 8) + '****';
 			this.logger.info(`[Pay-i Databricks] ──── DEBUG (item ${itemIndex}) ────`);
 			this.logger.info(`[Pay-i Databricks] workspaceUrl="${workspaceUrl}"`);
-			this.logger.info(`[Pay-i Databricks] → gatewayUrl="${gatewayUrl}"`);
+			this.logger.info(`[Pay-i Databricks] → providerBaseUri="${providerBaseUri}"`);
 			this.logger.info(`[Pay-i Databricks] endpoint="${endpointName}" cloud="${cloudProvider}"`);
 			this.logger.info(`[Pay-i Databricks] baseURL="${baseURL}"`);
 			const masked = Object.fromEntries(

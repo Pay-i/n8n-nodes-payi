@@ -14,10 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Deployment & Configuration Guide for self-hosted n8n (`docs/deployment-guide.md`)
 - `CLAUDE.md` project guidance
 - `SBOM.md` software bill of materials
+- `databricksApi` credential is now wired into the Pay-i Proxy node — when `Provider = Databricks` is selected, the workspace URL and PAT come from a saved n8n credential rather than inline fields
 
 ### Changed
 - Package ships single proxy node (`Payi.node.ts`) for n8n Cloud compatibility
 - HTTP errors now throw `NodeApiError` instead of `NodeOperationError`
+- Databricks `xProxy-Provider-BaseUri` now points at `<workspace>/serving-endpoints` (the actual OpenAI-compatible Model Serving entry point) instead of the fabricated `<workspace>.ai-gateway.<domain>/mlflow` host. Affects both the proxy node's Databricks branch and the `Pay-i Databricks (Proxy)` chat model node.
+- `Pay-i Databricks (Proxy)` chat model node now uses our `databricksApi` credential (`workspaceUrl` / `accessToken`) instead of the external `n8n-nodes-databricks` package's `databricks` credential (`host` / `token`). Removes the hard dependency on a second community package and fixes the blank credential form when that package isn't installed.
+
+### Fixed
+- Pay-i Proxy node showed no credential setup when `Provider = Databricks` was selected — the workspace URL and PAT had to be pasted inline. Now uses the `Databricks API` credential dropdown, matching the ergonomics of the other provider chat model nodes.
 - Asset copy script now handles credentials directory and `.json` files
 - OpenAI provider doc upgraded to full depth with pricing context and model reference
 - Anthropic provider doc expanded with pricing context and extended thinking details
