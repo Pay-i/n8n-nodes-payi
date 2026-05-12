@@ -6,36 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-12
+
+### Changed (Breaking)
+- **Renamed Databricks credential type** from `databricksApi` to `payiDatabricksApi` to avoid a collision with n8n's built-in `databricksApi` credential. n8n 2.19+ ships first-party Databricks support with the same credential type name but different field shape (`host`/`token` vs our `workspaceUrl`/`accessToken`); both registering under the same name caused undefined behavior in the credential registry. Display name changed from "Databricks API" to "Pay-i Databricks API". File and class renamed accordingly. Customers with existing `databricksApi` credentials in this package must recreate them as `Pay-i Databricks API`; zero affected at time of rename (no production deployments).
+
 ### Added
-- External codex metadata file (`Payi.node.json`) for n8n Cloud scanner
-- Credential icons for Pay-i API and Databricks API credential types
-- `build:selfhosted` script for self-hosted n8n installations with all nodes
-- `authenticate` block on Databricks API credentials
-- Deployment & Configuration Guide for self-hosted n8n (`docs/deployment-guide.md`)
-- `CLAUDE.md` project guidance
-- `SBOM.md` software bill of materials
-- `databricksApi` credential is now wired into the Pay-i Proxy node — when `Provider = Databricks` is selected, the workspace URL and PAT come from a saved n8n credential rather than inline fields
+- `xProxy-PriceAs-Resource` header now sent by all proxy paths: Pay-i Proxy (all five providers) and the LangChain chat model nodes (OpenAI, Anthropic, Bedrock, Databricks). The value is the model name or serving endpoint name, depending on provider. Azure already sent this header; the addition brings the others in line. Required for Pay-i pricing engine to resolve per-model rates within a category.
+- "Databricks" option in the Cloud Provider dropdown on both the Pay-i Proxy node (when Databricks provider is selected) and the Pay-i Databricks (Proxy) chat model node, for self-hosted, on-premises, or non-major-cloud deployments using `cloud.databricks.com`-pattern URLs. Sends `xProxy-PriceAs-Category: system.databricks.databricks`. Pay-i pricing-table registration for this category is pending (see sysops Q6).
+- `databricksApi` credential wired into the Pay-i Proxy node — when `Provider = Databricks` is selected, the workspace URL and PAT come from a saved n8n credential rather than inline fields.
+- `authenticate` block on the Pay-i Databricks API credential.
+- Credential icons for Pay-i API and Pay-i Databricks API credential types.
+- External codex metadata file (`Payi.node.json`).
+- Deployment & Configuration Guide for self-hosted n8n (`docs/deployment-guide.md`).
+- `CLAUDE.md` project guidance.
+- `SBOM.md` software bill of materials.
 
 ### Changed
-- Package ships single proxy node (`Payi.node.ts`) for n8n Cloud compatibility
-- HTTP errors now throw `NodeApiError` instead of `NodeOperationError`
-- Databricks `xProxy-Provider-BaseUri` now points at `<workspace>/serving-endpoints` (the actual OpenAI-compatible Model Serving entry point) instead of the fabricated `<workspace>.ai-gateway.<domain>/mlflow` host. Affects both the proxy node's Databricks branch and the `Pay-i Databricks (Proxy)` chat model node.
-- `Pay-i Databricks (Proxy)` chat model node now uses our `databricksApi` credential (`workspaceUrl` / `accessToken`) instead of the external `n8n-nodes-databricks` package's `databricks` credential (`host` / `token`). Removes the hard dependency on a second community package and fixes the blank credential form when that package isn't installed.
+- **Drop cloud/selfhosted build profile toggle.** The `set-package-nodes.js` script and the `build:cloud` / `build:selfhosted` npm scripts have been removed. `package.json` now statically registers all 6 nodes — same shape as the previously-published 0.3.0 on npm. The toggle was a footgun: any tag-push could publish the cloud profile (1 node) and regress on customers expecting the selfhosted profile (6 nodes). Selfhosted is now the only supported distribution profile. The `npm run build` script is unchanged in behavior; the convenience aliases just go away.
+- HTTP errors now throw `NodeApiError` instead of `NodeOperationError`.
+- `Pay-i Databricks (Proxy)` chat model node uses our `payiDatabricksApi` credential (`workspaceUrl` / `accessToken`) instead of the external `n8n-nodes-databricks` package's `databricks` credential. Removes the hard dependency on a second community package.
 
 ### Fixed
-- Pay-i Proxy node showed no credential setup when `Provider = Databricks` was selected — the workspace URL and PAT had to be pasted inline. Now uses the `Databricks API` credential dropdown, matching the ergonomics of the other provider chat model nodes.
-- Asset copy script now handles credentials directory and `.json` files
-- OpenAI provider doc upgraded to full depth with pricing context and model reference
-- Anthropic provider doc expanded with pricing context and extended thinking details
-- Azure provider doc upgraded with prominent endpoint resolution guide and pricing context
-- Bedrock provider doc expanded with detailed proxy routing explanation and pricing context
-- Removed `gulp` dependency — icon copying now uses a zero-dependency Node.js script
-- Upgraded `eslint` from 8.57 to 10.x with flat config (`eslint.config.mjs`)
-- Replaced `@typescript-eslint/parser` with unified `typescript-eslint` v8 package
-- Expanded `.gitignore` to project standards
+- **Databricks proxy URL pattern.** Replaced the fabricated `<workspace>.ai-gateway.<domain>/mlflow` URL with the correct `<workspace>/serving-endpoints` path. The fabricated `ai-gateway` subdomain doesn't exist as a real Databricks endpoint and was being rejected by Pay-i's proxy with `invalid_provider_host`. Affects both the generic Pay-i Proxy node's Databricks branch and the Pay-i Databricks (Proxy) chat model node.
+- Pay-i Proxy node showed no credential setup when `Provider = Databricks` was selected — workspace URL and PAT had to be pasted inline. Now uses the `Pay-i Databricks API` credential dropdown, matching the ergonomics of the other provider chat model nodes.
+- Asset copy script now handles credentials directory and `.json` files.
+- OpenAI / Anthropic / Azure / Bedrock provider docs upgraded with pricing context, endpoint routing details, and per-provider quirks.
+- `eslint` upgraded from 8.57 to 10.x with flat config (`eslint.config.mjs`).
+- Replaced `@typescript-eslint/parser` with unified `typescript-eslint` v8 package.
+- Removed `gulp` dependency — icon copying uses a zero-dependency Node.js script.
+- Removed `eslint-plugin-n8n-nodes-base` and `@eslint/eslintrc` — these enforced n8n Cloud scanner rules and were both incompatible with ESLint 10 and irrelevant to the selfhosted-only distribution profile.
+- Expanded `.gitignore` to project standards.
 
 ### Security
-- Resolved all 14 npm audit vulnerabilities (6 high, 8 moderate)
+- Resolved all 14 npm audit vulnerabilities (6 high, 8 moderate):
   - `braces@2.3.2` — uncontrolled resource consumption (via gulp)
   - `minimatch@3.1.2` — ReDoS (via eslint 8)
   - `flatted@<=3.4.1` — unbounded recursion DoS (via eslint 8)

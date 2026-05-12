@@ -49,7 +49,7 @@ export class PayiChatModelDatabricks implements INodeType {
 				required: true,
 			},
 			{
-				name: 'databricksApi',
+				name: 'payiDatabricksApi',
 				required: true,
 			},
 		],
@@ -70,7 +70,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		const payiBaseUrl = (payiCredentials.baseUrl as string).replace(/\/+$/, '');
 		const payiApiKey = payiCredentials.apiKey as string;
 
-		const databricksCredentials = await this.getCredentials('databricksApi');
+		const databricksCredentials = await this.getCredentials('payiDatabricksApi');
 		const accessToken = databricksCredentials.accessToken as string;
 		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
@@ -112,6 +112,7 @@ export class PayiChatModelDatabricks implements INodeType {
 			'xProxy-Api-Key': payiApiKey,
 			'xProxy-Provider-BaseUri': providerBaseUri,
 			'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
+			'xProxy-PriceAs-Resource': endpointName,
 			Authorization: `Bearer ${accessToken}`,
 			...trackingHeaders,
 		};

@@ -88,7 +88,7 @@ export class Payi implements INodeType {
 				required: true,
 			},
 			{
-				name: 'databricksApi',
+				name: 'payiDatabricksApi',
 				required: true,
 				displayOptions: { show: { provider: ['databricks'] } },
 			},

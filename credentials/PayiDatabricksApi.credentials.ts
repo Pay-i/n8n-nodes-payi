@@ -6,10 +6,10 @@ import {
 	Icon,
 } from 'n8n-workflow';
 
-export class DatabricksApi implements ICredentialType {
-	name = 'databricksApi';
+export class PayiDatabricksApi implements ICredentialType {
+	name = 'payiDatabricksApi';
 
-	displayName = 'Databricks API';
+	displayName = 'Pay-i Databricks API';
 
 	icon: Icon = 'file:payi_logo.png';
 

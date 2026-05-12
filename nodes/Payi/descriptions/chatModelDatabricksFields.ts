@@ -19,11 +19,12 @@ export const chatModelDatabricksFields: INodeProperties[] = [
 			{ name: 'AWS', value: 'aws' },
 			{ name: 'Azure', value: 'azure' },
 			{ name: 'Google Cloud (GCP)', value: 'google' },
+			{ name: 'Databricks', value: 'databricks' },
 		],
 		default: 'aws',
 		required: true,
 		description:
-			'The cloud provider where your Databricks workspace is hosted. Used for cost pricing. Azure workspaces (.azuredatabricks.net) are auto-detectable; AWS and GCP both use .cloud.databricks.com.',
+			'The cloud provider where your Databricks workspace is hosted. Used for cost pricing. Azure workspaces (.azuredatabricks.net) are auto-detectable; AWS, GCP, and Databricks-hosted all use .cloud.databricks.com. Choose Databricks for self-hosted, on-premises, or non-major-cloud deployments.',
 	},
 	{
 		displayName: 'Options',

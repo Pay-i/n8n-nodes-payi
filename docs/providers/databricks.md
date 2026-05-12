@@ -19,9 +19,9 @@ Routes Databricks Model Serving chat model requests through the Pay-i proxy for 
 | Credential | Type | Source |
 |------------|------|--------|
 | Pay-i API | `payiApi` | Pay-i community node |
-| Databricks API | `databricksApi` | Pay-i community node |
+| Pay-i Databricks API | `payiDatabricksApi` | Pay-i community node |
 
-The Databricks API credential stores the workspace URL (`workspaceUrl`) and Personal Access Token (`accessToken`).
+The Pay-i Databricks API credential stores the workspace URL (`workspaceUrl`) and Personal Access Token (`accessToken`). The credential type is namespaced as `payiDatabricksApi` to avoid collision with n8n's built-in `databricksApi` credential (which uses different field names: `host`/`token`).
 
 ## Parameters
 
@@ -90,7 +90,7 @@ AWS is the most common Databricks deployment and the node's default cloud provid
 
 The workspace ID is a numeric identifier (for example, `1234567890123456`). You can find your workspace URL in the Databricks account console or by looking at the browser URL when logged into your workspace.
 
-**Credential:** A Databricks Personal Access Token (PAT) generated from your AWS-hosted workspace under **User Settings > Developer > Access Tokens**. Stored in n8n as a `Databricks API` credential (workspace URL + PAT).
+**Credential:** A Databricks Personal Access Token (PAT) generated from your AWS-hosted workspace under **User Settings > Developer > Access Tokens**. Stored in n8n as a `Pay-i Databricks API` credential (workspace URL + PAT).
 
 **Provider Base URI:** Built automatically as `https://{workspace-id}.cloud.databricks.com/serving-endpoints`.
 
@@ -167,7 +167,7 @@ The n8n migration toolkit automatically detects the following native nodes and r
 - `n8n-nodes-databricks.lmChatDatabricks`
 - `n8n-nodes-databricks.databricksAiAgent`
 
-Existing native Databricks credentials (`host` / `token`) are mapped onto the Pay-i `Databricks API` credential (`workspaceUrl` / `accessToken`) by the toolkit. The endpoint name is extracted from the native node's `endpoint`, `endpointName`, or `model` parameter. Cloud provider defaults to AWS.
+Existing native Databricks credentials (`host` / `token`) are mapped onto the Pay-i `Pay-i Databricks API` credential (`workspaceUrl` / `accessToken`) by the toolkit. The endpoint name is extracted from the native node's `endpoint`, `endpointName`, or `model` parameter. Cloud provider defaults to AWS.
 
 ---
 

@@ -21,7 +21,10 @@ export async function buildProviderRequest(
 			return {
 				urlPath: 'openai/v1/chat/completions',
 				body: { model },
-				headers: { Authorization: `Bearer ${apiKey}` },
+				headers: {
+					Authorization: `Bearer ${apiKey}`,
+					'xProxy-PriceAs-Resource': model,
+				},
 				method: 'POST',
 			};
 
@@ -32,6 +35,7 @@ export async function buildProviderRequest(
 				headers: {
 					'x-api-key': apiKey,
 					'anthropic-version': '2023-06-01',
+					'xProxy-PriceAs-Resource': model,
 				},
 				method: 'POST',
 			};
@@ -42,7 +46,10 @@ export async function buildProviderRequest(
 			return {
 				urlPath: `azure.openai/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`,
 				body: {},
-				headers: { 'api-key': apiKey },
+				headers: {
+					'api-key': apiKey,
+					'xProxy-PriceAs-Resource': deployment,
+				},
 				method: 'POST',
 			};
 		}
@@ -54,6 +61,7 @@ export async function buildProviderRequest(
 			const headers: Record<string, string> = {
 				'x-amz-access-key-id': apiKey,
 				'x-amz-secret-access-key': secretKey,
+				'xProxy-PriceAs-Resource': model,
 			};
 			if (sessionToken) headers['x-amz-session-token'] = sessionToken;
 			return {
@@ -65,7 +73,7 @@ export async function buildProviderRequest(
 		}
 
 		case 'databricks': {
-			const databricksCredentials = await context.getCredentials('databricksApi');
+			const databricksCredentials = await context.getCredentials('payiDatabricksApi');
 			const accessToken = databricksCredentials.accessToken as string;
 			const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 			const endpointName = context.getNodeParameter('databricksEndpointName', itemIndex) as string;
@@ -81,6 +89,7 @@ export async function buildProviderRequest(
 					Authorization: `Bearer ${accessToken}`,
 					'xProxy-Provider-BaseUri': providerBaseUri,
 					'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
+					'xProxy-PriceAs-Resource': endpointName,
 				},
 				method: 'POST',
 			};
