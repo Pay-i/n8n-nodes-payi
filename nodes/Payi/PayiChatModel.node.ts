@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+ 
 import type {
 	INodeType,
 	INodeTypeDescription,
@@ -92,6 +92,7 @@ export class PayiChatModel implements INodeType {
 		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
+			'xProxy-PriceAs-Resource': modelName,
 			...trackingHeaders,
 		};
 

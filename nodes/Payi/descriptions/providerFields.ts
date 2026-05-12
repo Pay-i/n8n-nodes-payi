@@ -24,6 +24,7 @@ export const providerFields: INodeProperties[] = [
 		default: '',
 		required: true,
 		description: 'API key or access token for the selected provider',
+		displayOptions: { hide: { provider: ['databricks'] } },
 	},
 	{
 		displayName: 'Model ID',
@@ -33,6 +34,7 @@ export const providerFields: INodeProperties[] = [
 		required: true,
 		placeholder: 'e.g. gpt-4o, claude-sonnet-4-20250514',
 		description: 'The model ID to use',
+		displayOptions: { hide: { provider: ['databricks'] } },
 	},
 	// Azure extras
 	{
@@ -77,17 +79,7 @@ export const providerFields: INodeProperties[] = [
 		default: 'us-east-1',
 		displayOptions: { show: { provider: ['bedrock'] } },
 	},
-	// Databricks extras
-	{
-		displayName: 'Workspace URL',
-		name: 'databricksWorkspaceUrl',
-		type: 'string',
-		default: '',
-		required: true,
-		placeholder: 'e.g. https://1234567890.cloud.databricks.com',
-		description: 'The URL of your Databricks workspace',
-		displayOptions: { show: { provider: ['databricks'] } },
-	},
+	// Databricks extras (workspace URL + PAT come from the Databricks API credential)
 	{
 		displayName: 'Serving Endpoint Name',
 		name: 'databricksEndpointName',
@@ -107,10 +99,11 @@ export const providerFields: INodeProperties[] = [
 			{ name: 'AWS', value: 'aws' },
 			{ name: 'Azure', value: 'azure' },
 			{ name: 'Google Cloud (GCP)', value: 'google' },
+			{ name: 'Databricks', value: 'databricks' },
 		],
 		default: 'aws',
 		required: true,
-		description: 'The cloud provider where your Databricks workspace is hosted (used for cost pricing)',
+		description: 'The cloud provider where your Databricks workspace is hosted (used for cost pricing). Choose Databricks for self-hosted, on-premises, or non-major-cloud deployments using cloud.databricks.com URLs.',
 		displayOptions: { show: { provider: ['databricks'] } },
 	},
 ];

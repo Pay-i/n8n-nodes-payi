@@ -62,6 +62,8 @@ Restart n8n after installing.
 
 ## Setup
 
+> **Self-hosted deployment?** For detailed instructions including Docker installation, dedicated Pay-i instance configuration, and troubleshooting, see the [Deployment & Configuration Guide](docs/deployment-guide.md).
+
 ### 1. Configure Pay-i Credentials
 
 When you first add a Pay-i node to a workflow, n8n will prompt you to configure credentials:
@@ -83,12 +85,12 @@ For AI Agent workflows:
 
 ## Tracking Headers
 
-Pay-i uses custom HTTP headers to associate requests with users, use cases, and budgets. All tracking fields are optional and have smart defaults.
+Pay-i uses custom HTTP headers to associate requests with users, Use Cases, and Limits. All tracking fields are optional and have smart defaults.
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | **xProxy-User-ID** | _(empty)_ | User identifier for per-user cost attribution |
-| **xProxy-UseCase-Name** | Workflow name | Use case name for tracking and KPI scoring |
+| **xProxy-UseCase-Name** | Workflow name | Use Case Name for tracking and KPI scoring |
 | **xProxy-UseCase-ID** | `{provider}/{model}/{executionId}` | Unique instance ID for grouping requests |
 | **xProxy-UseCase-Step** | Node name on canvas | Step within a multi-step workflow |
 
@@ -100,7 +102,7 @@ These fields are available under the "Advanced Tracking" section and should typi
 |-------|-------------|
 | **xProxy-UseCase-Version** | Version of the use case definition |
 | **xProxy-UseCase-Properties** | JSON object of key-value properties |
-| **xProxy-Limit-IDs** | Comma-separated list of Pay-i limit IDs to enforce |
+| **xProxy-Limit-IDs** | Comma-separated list of Pay-i Limit IDs to enforce |
 | **Debug Logging** | Logs request URLs, headers, and routing details to the n8n server console |
 
 ## Supported Proxy Paths
@@ -132,10 +134,12 @@ python3 migrate-workflows-to-payi.py              # run migration
 ## Development
 
 ```bash
-npm install     # Install dependencies
-npm run build   # Build
-npm run dev     # Watch mode
-npm run lint    # Lint
+npm install       # Install dependencies
+npm run build     # Clean, compile TypeScript, copy icons
+npm run dev       # TypeScript watch mode
+npm run lint      # ESLint (TypeScript rules)
+npm run lint:fix  # ESLint with auto-fix
+npm run format    # Prettier
 ```
 
 ### Local Testing

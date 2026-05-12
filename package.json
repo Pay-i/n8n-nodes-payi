@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-payi",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "n8n community node for routing LLM requests through Pay-i proxy with cost tracking and budget enforcement",
 	"keywords": [
 		"n8n-community-node-package",
@@ -24,11 +24,11 @@
 	"main": "index.js",
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "npm run clean && tsc && gulp build:icons",
+		"build": "npm run clean && tsc && node scripts/copy-icons.js",
 		"dev": "tsc --watch",
 		"format": "prettier nodes credentials --write",
-		"lint": "eslint nodes credentials --ext .ts",
-		"lint:fix": "eslint nodes credentials --ext .ts --fix",
+		"lint": "eslint nodes credentials",
+		"lint:fix": "eslint nodes credentials --fix",
 		"prepublishOnly": "npm run build"
 	},
 	"files": [
@@ -38,7 +38,7 @@
 		"n8nNodesApiVersion": 1,
 		"credentials": [
 			"dist/credentials/PayiApi.credentials.js",
-			"dist/credentials/DatabricksApi.credentials.js"
+			"dist/credentials/PayiDatabricksApi.credentials.js"
 		],
 		"nodes": [
 			"dist/nodes/Payi/Payi.node.js",
@@ -50,12 +50,11 @@
 		]
 	},
 	"devDependencies": {
-		"@typescript-eslint/parser": "~7.18.0",
-		"eslint": "~8.57.0",
-		"gulp": "^4.0.2",
+		"eslint": "^10.1.0",
 		"n8n-workflow": "*",
 		"prettier": "~3.3.0",
-		"typescript": "~5.5.0"
+		"typescript": "~5.5.0",
+		"typescript-eslint": "^8.57.1"
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"

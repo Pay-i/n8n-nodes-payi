@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+ 
 import type {
 	INodeType,
 	INodeTypeDescription,
@@ -107,6 +107,7 @@ export class PayiChatModelBedrock implements INodeType {
 		const proxyHost = `${payiBaseUrl}/api/v1/proxy/aws.bedrock`.replace(/^https?:\/\//, '');
 		const additionalHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
+			'xProxy-PriceAs-Resource': modelId,
 			...trackingHeaders,
 		};
 

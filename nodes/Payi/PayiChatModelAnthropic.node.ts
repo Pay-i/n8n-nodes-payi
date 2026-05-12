@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+ 
 import type {
 	INodeType,
 	INodeTypeDescription,
@@ -120,6 +120,7 @@ export class PayiChatModelAnthropic implements INodeType {
 		const anthropicBaseUrl = `${payiBaseUrl}/api/v1/proxy/anthropic`;
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
+			'xProxy-PriceAs-Resource': modelName,
 			...trackingHeaders,
 		};
 

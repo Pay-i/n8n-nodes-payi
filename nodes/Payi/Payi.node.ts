@@ -4,8 +4,9 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import {
 	providerFields,
@@ -85,6 +86,11 @@ export class Payi implements INodeType {
 			{
 				name: 'payiApi',
 				required: true,
+			},
+			{
+				name: 'payiDatabricksApi',
+				required: true,
+				displayOptions: { show: { provider: ['databricks'] } },
 			},
 		],
 		properties: [
@@ -233,7 +239,7 @@ export class Payi implements INodeType {
 					});
 					continue;
 				}
-				throw new NodeOperationError(this.getNode(), error as Error, {
+				throw new NodeApiError(this.getNode(), error as JsonObject, {
 					itemIndex: i,
 				});
 			}

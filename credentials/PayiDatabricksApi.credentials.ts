@@ -1,13 +1,17 @@
 import {
+	IAuthenticateGeneric,
 	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
+	Icon,
 } from 'n8n-workflow';
 
-export class DatabricksApi implements ICredentialType {
-	name = 'databricksApi';
+export class PayiDatabricksApi implements ICredentialType {
+	name = 'payiDatabricksApi';
 
-	displayName = 'Databricks API';
+	displayName = 'Pay-i Databricks API';
+
+	icon: Icon = 'file:payi_logo.png';
 
 	documentationUrl = 'https://docs.databricks.com/en/dev-tools/auth/pat.html';
 
@@ -31,6 +35,15 @@ export class DatabricksApi implements ICredentialType {
 			description: 'The URL of your Databricks workspace',
 		},
 	];
+
+	authenticate: IAuthenticateGeneric = {
+		type: 'generic',
+		properties: {
+			headers: {
+				Authorization: '=Bearer {{$credentials.accessToken}}',
+			},
+		},
+	};
 
 	test: ICredentialTestRequest = {
 		request: {
