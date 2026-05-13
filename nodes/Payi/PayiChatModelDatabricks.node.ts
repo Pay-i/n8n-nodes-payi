@@ -222,6 +222,19 @@ export class PayiChatModelDatabricks implements INodeType {
 			payiLog(`ClientConfig defaultHeaders: ${JSON.stringify((model as any).clientConfig?.defaultHeaders || {})}`); // eslint-disable-line @typescript-eslint/no-explicit-any
 			try {
 				const result = await origCompletionWithRetry(request, opts);
+				// Normalize structured content blocks to a plain string.
+				// Some models (e.g. Claude via Databricks) return content as an array
+				// of objects [{type:"text", text:"..."}] which LangChain doesn't handle.
+				// if (result?.choices) {
+				// 	for (const choice of result.choices) {
+				// 		if (Array.isArray(choice?.message?.content)) {
+				// 			choice.message.content = choice.message.content
+				// 				.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
+				// 				.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
+				// 				.join('');
+				// 		}
+				// 	}
+				// }
 				payiLog(`──── RAW RESPONSE FROM OPENAI SDK ────`);
 				payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
 				return result;
