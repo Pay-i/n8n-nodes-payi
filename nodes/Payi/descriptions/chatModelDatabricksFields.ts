@@ -2,13 +2,23 @@ import type { INodeProperties } from 'n8n-workflow';
 
 export const chatModelDatabricksFields: INodeProperties[] = [
 	{
-		displayName: 'Serving Endpoint Name',
+		displayName: 'Serving Endpoint Name (Model)',
 		name: 'endpointName',
 		type: 'string',
 		default: '',
 		required: true,
-		placeholder: 'e.g. my-llm-endpoint, databricks-meta-llama-3-3-70b-instruct',
-		description: 'The name of the Databricks Model Serving endpoint',
+		placeholder: 'e.g. databricks-meta-llama-3-3-70b-instruct, databricks-gpt-5-4',
+		description:
+			'The name of the Databricks Model Serving endpoint. Sent as the "model" field in the request body. Databricks reads this value to route the request to the named endpoint. The proxy URL is always /serving-endpoints/chat/completions — Databricks does the internal routing based on this field. The endpoint must accept OpenAI-shape chat/completions requests (foundation models do; custom MLflow / tensor models do NOT — for those, see the Body Format support coming in 0.4.0).',
+	},
+	{
+		displayName: 'Price-As Resource (Optional)',
+		name: 'priceAsResource',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. databricks-gpt-5-4 (leave empty for foundation models)',
+		description:
+			'Sent as the xProxy-PriceAs-Resource HEADER (does not change routing — only Pay-i\'s cost-tracking lookup). Leave empty when the Serving Endpoint Name already matches a known Databricks foundation model registered in Pay-i\'s pricing tables. Set this when your endpoint is a custom wrapper around a foundation model (e.g. endpoint name "payi-devorg" but the underlying model is "databricks-gpt-5-4") so Pay-i resolves per-model pricing instead of marking the call as an unknown resource. Important: this field is metadata only — it does NOT affect which endpoint Databricks invokes; that\'s determined by the Serving Endpoint Name field.',
 	},
 	{
 		displayName: 'Cloud Provider',

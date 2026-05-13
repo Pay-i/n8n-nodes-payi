@@ -78,18 +78,33 @@ export async function buildProviderRequest(
 			const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 			const endpointName = context.getNodeParameter('databricksEndpointName', itemIndex) as string;
 			const cloudProvider = context.getNodeParameter('databricksCloudProvider', itemIndex) as string;
-			// Databricks Model Serving exposes its OpenAI-compatible chat endpoint at
-			// `<workspace>/serving-endpoints/chat/completions`. The proxy appends
-			// `/chat/completions`, so the BaseUri is `<workspace>/serving-endpoints`.
-			const providerBaseUri = `${workspaceUrl}/serving-endpoints`;
+			const priceAsResourceOverride = context.getNodeParameter('databricksPriceAsResource', itemIndex, '') as string;
+
+			// PriceAs-Resource resolution:
+			//   1. Explicit override → use it
+			//   2. Endpoint name starts with "databricks-" (foundation model) → use endpoint name
+			//   3. Custom endpoint name → fall back to a known foundation model so Pay-i can price it
+			const DEFAULT_FOUNDATION_MODEL = 'databricks-gpt-5-4';
+			const FOUNDATION_PATTERN = /^databricks-/;
+			let priceAsResource: string;
+			if (priceAsResourceOverride.trim()) {
+				priceAsResource = priceAsResourceOverride.trim();
+			} else if (FOUNDATION_PATTERN.test(endpointName)) {
+				priceAsResource = endpointName;
+			} else {
+				priceAsResource = DEFAULT_FOUNDATION_MODEL;
+			}
+
+			// Route through Pay-i's Databricks-native proxy path.
+			// Pay-i forwards to `<workspace>/serving-endpoints/<endpoint>/invocations`.
 			return {
-				urlPath: 'openai/v1/chat/completions',
-				body: { model: endpointName },
+				urlPath: `databricks/serving-endpoints/${encodeURIComponent(endpointName)}/invocations`,
+				body: {},
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
-					'xProxy-Provider-BaseUri': providerBaseUri,
+					'xProxy-Provider-BaseUri': workspaceUrl,
 					'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
-					'xProxy-PriceAs-Resource': endpointName,
+					'xProxy-PriceAs-Resource': priceAsResource,
 				},
 				method: 'POST',
 			};
