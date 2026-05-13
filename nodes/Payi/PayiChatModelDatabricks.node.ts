@@ -79,8 +79,15 @@ export class PayiChatModelDatabricks implements INodeType {
 		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
 		const endpointName = this.getNodeParameter('endpointName', itemIndex) as string;
+		const deployedModel = this.getNodeParameter('deployedModel', itemIndex, '') as string;
 		const cloudProvider = this.getNodeParameter('cloudProvider', itemIndex) as string;
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
+
+		if (!deployedModel && !endpointName.startsWith('databricks-')) {
+			throw new Error(
+				'Deployed Model is required for custom serving endpoints (those not starting with "databricks-").',
+			);
+		}
 
 		// Build tracking headers
 		const trackingHeaders: Record<string, string> = {};
@@ -110,9 +117,11 @@ export class PayiChatModelDatabricks implements INodeType {
 			'xProxy-Api-Key': payiApiKey,
 			'xProxy-Provider-BaseUri': providerBaseUri,
 			'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
-			'xProxy-PriceAs-Resource': endpointName,
 			...trackingHeaders,
 		};
+		if (deployedModel) {
+			defaultHeaders['xProxy-PriceAs-Resource'] = deployedModel;
+		}
 
 		if (debugLogging) {
 			const mask = (v: string) => v.length <= 8 ? '****' : v.substring(0, 8) + '****';

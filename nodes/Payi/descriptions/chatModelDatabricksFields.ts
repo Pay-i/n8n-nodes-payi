@@ -11,6 +11,15 @@ export const chatModelDatabricksFields: INodeProperties[] = [
 		description: 'The name of the Databricks Model Serving endpoint',
 	},
 	{
+		displayName: 'Deployed Model',
+		name: 'deployedModel',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. claude-sonnet-4-6, gpt-4o',
+		description:
+			'The underlying model deployed behind the serving endpoint. Required for custom endpoints; optional for pre-provisioned "databricks-" foundation models.',
+	},
+	{
 		displayName: 'Cloud Provider',
 		name: 'cloudProvider',
 		type: 'options',
