@@ -1,4 +1,3 @@
- 
 import type {
 	INodeType,
 	INodeTypeDescription,
@@ -6,17 +5,23 @@ import type {
 	SupplyData,
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { chatModelDatabricksFields } from './descriptions/chatModelDatabricksFields';
 import { createTrackingFields } from './descriptions/trackingFields';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
-// Declared here so TypeScript accepts the require() calls.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-// Databricks Model Serving exposes its OpenAI-compatible chat endpoint at
-// `<workspace>/serving-endpoints/chat/completions`. The OpenAI client appends
-// `/chat/completions`, so the base URI we hand Pay-i is `<workspace>/serving-endpoints`.
+const PAYI_DEBUG_LOG = path.join(process.env.HOME || '/tmp', '.n8n', 'payi-databricks-debug.log');
+const PAYI_FILE_DEBUG_ENABLED = process.env.PAYI_FILE_DEBUG === '1';
+function payiLog(msg: string) {
+	if (!PAYI_FILE_DEBUG_ENABLED) return;
+	const line = `[${new Date().toISOString()}] ${msg}\n`;
+	fs.appendFileSync(PAYI_DEBUG_LOG, line);
+}
+
 function deriveServingEndpointsUrl(workspaceUrl: string): string {
 	return workspaceUrl.replace(/\/+$/, '') + '/serving-endpoints';
 }
@@ -60,9 +65,8 @@ export class PayiChatModelDatabricks implements INodeType {
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		// Runtime imports — resolved through n8n's VM context, not bundled
-		// We use ChatOpenAI because Databricks Model Serving exposes an
-		// OpenAI-compatible chat/completions endpoint.
+		payiLog(`supplyData called for item ${itemIndex}`);
+
 		const { ChatOpenAI } = require('@langchain/openai');
 		const { N8nLlmTracing, makeN8nLlmFailedAttemptHandler } = require('@n8n/ai-utilities');
 
@@ -83,7 +87,6 @@ export class PayiChatModelDatabricks implements INodeType {
 		const userId = this.getNodeParameter('userId', itemIndex, '') as string;
 		const useCaseName = this.getNodeParameter('useCaseName', itemIndex, '') as string;
 		const useCaseId = this.getNodeParameter('useCaseId', itemIndex, '') as string;
-		// Advanced tracking fields (collapsed in UI under "Advanced Tracking")
 		const advancedTracking = this.getNodeParameter('advancedTracking', itemIndex, {}) as Record<string, string>;
 		const useCaseVersion = advancedTracking.useCaseVersion || '';
 		const useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
@@ -101,19 +104,13 @@ export class PayiChatModelDatabricks implements INodeType {
 		}
 		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
 
-		const timeout = options.timeout as number | undefined;
-
 		const providerBaseUri = deriveServingEndpointsUrl(workspaceUrl);
-
-		// Route through Pay-i's OpenAI proxy path (Databricks is OpenAI-compatible)
-		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
 
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
 			'xProxy-Provider-BaseUri': providerBaseUri,
 			'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
 			'xProxy-PriceAs-Resource': endpointName,
-			Authorization: `Bearer ${accessToken}`,
 			...trackingHeaders,
 		};
 
@@ -123,7 +120,7 @@ export class PayiChatModelDatabricks implements INodeType {
 			this.logger.info(`[Pay-i Databricks] workspaceUrl="${workspaceUrl}"`);
 			this.logger.info(`[Pay-i Databricks] → providerBaseUri="${providerBaseUri}"`);
 			this.logger.info(`[Pay-i Databricks] endpoint="${endpointName}" cloud="${cloudProvider}"`);
-			this.logger.info(`[Pay-i Databricks] baseURL="${baseURL}"`);
+			this.logger.info(`[Pay-i Databricks] baseURL="${payiBaseUrl}/api/v1/proxy/openai/v1"`);
 			const masked = Object.fromEntries(
 				Object.entries(defaultHeaders).map(([k, v]) =>
 					['xProxy-Api-Key', 'Authorization'].includes(k) ? [k, mask(v)] : [k, v],
@@ -132,19 +129,54 @@ export class PayiChatModelDatabricks implements INodeType {
 			this.logger.info(`[Pay-i Databricks] Headers: ${JSON.stringify(masked, null, 2)}`);
 		}
 
+		// Pass redacted headers for serialization (visible in n8n trace UI),
+		// then replace with real headers on the live client config.
+		const redactedHeaders: Record<string, string> = { ...defaultHeaders };
+		if (redactedHeaders['xProxy-Api-Key']) {
+			redactedHeaders['xProxy-Api-Key'] = '***';
+		}
+
 		const model = new ChatOpenAI({
 			apiKey: accessToken,
 			model: endpointName,
 			...options,
-			timeout,
-			maxRetries: (options.maxRetries as number) ?? 2,
 			configuration: {
-				baseURL,
-				defaultHeaders,
+				baseURL: `${payiBaseUrl}/api/v1/proxy/openai/v1`,
+				defaultHeaders: redactedHeaders,
 			},
 			callbacks: [new N8nLlmTracing(this)],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),
 		});
+
+		// Replace redacted headers with real ones on the live client config
+		(model as any).clientConfig.defaultHeaders = defaultHeaders; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+		payiLog(`Model configured: baseURL=${payiBaseUrl}/api/v1/proxy/openai/v1, model=${endpointName}`);
+		payiLog(`Options: ${JSON.stringify(options)}`);
+
+		// Patch completionWithRetry to capture raw request/response
+		const origCompletionWithRetry = (model as any).completionWithRetry.bind(model); // eslint-disable-line @typescript-eslint/no-explicit-any
+		(model as any).completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+			payiLog(`──── RAW REQUEST TO OPENAI SDK ────`);
+			payiLog(`Request params: ${JSON.stringify(request).substring(0, 5000)}`);
+			payiLog(`ClientConfig baseURL: ${(model as any).clientConfig?.baseURL || 'not set'}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+			payiLog(`ClientConfig defaultHeaders: ${JSON.stringify((model as any).clientConfig?.defaultHeaders || {})}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+			try {
+				const result = await origCompletionWithRetry(request, opts);
+				payiLog(`──── RAW RESPONSE FROM OPENAI SDK ────`);
+				payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
+				return result;
+			} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+				payiLog(`──── ERROR FROM OPENAI SDK ────`);
+				payiLog(`Error: ${err.message || err}`);
+				payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
+				payiLog(`Headers: ${JSON.stringify(err.headers || err.responseHeaders || {})}`);
+				payiLog(`Body: ${err.body || err.responseBody || ''}`);
+				payiLog(`Error object keys: ${Object.keys(err).join(', ')}`);
+				payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
+				throw err;
+			}
+		};
 
 		return {
 			response: model,

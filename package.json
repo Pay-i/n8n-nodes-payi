@@ -46,8 +46,7 @@
 			"dist/nodes/Payi/PayiChatModelAnthropic.node.js",
 			"dist/nodes/Payi/PayiChatModelAzure.node.js",
 			"dist/nodes/Payi/PayiChatModelBedrock.node.js",
-			"dist/nodes/Payi/PayiChatModelDatabricks.node.js",
-			"dist/nodes/Payi/PayiDatabricksModelServing.node.js"
+			"dist/nodes/Payi/PayiChatModelDatabricks.node.js"
 		]
 	},
 	"devDependencies": {
