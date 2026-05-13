@@ -285,21 +285,61 @@ export class PayiChatModelDatabricks implements INodeType {
 				let totalTokens = 0;
 
 				if (data?.choices?.[0]?.message) {
-					// OpenAI shape (foundation models, custom chat-completion endpoints)
+					// OpenAI Chat Completions shape (foundation models, custom chat-completion endpoints)
 					const msg = data.choices[0].message;
 					content = msg.content != null ? String(msg.content) : '';
 					toolCalls = msg.tool_calls;
 					promptTokens = data.usage?.prompt_tokens || 0;
 					completionTokens = data.usage?.completion_tokens || 0;
 					totalTokens = data.usage?.total_tokens || (promptTokens + completionTokens);
+				} else if (Array.isArray(data?.candidates)) {
+					// Gemini-native shape: { candidates:[{ content:{ parts:[{text}], role }, finishReason }], usageMetadata:{...} }
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const candidate = data.candidates[0] as any;
+					const parts = candidate?.content?.parts || [];
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					content = parts.map((p: any) => p?.text || '').join('');
+					// Gemini exposes function calls via parts[].functionCall — surface them as OpenAI-shape tool_calls
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const fnCalls = parts.filter((p: any) => p?.functionCall);
+					if (fnCalls.length > 0) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						toolCalls = fnCalls.map((p: any, i: number) => ({
+							id: `call_${Date.now()}_${i}`,
+							type: 'function',
+							function: {
+								name: p.functionCall.name,
+								arguments: JSON.stringify(p.functionCall.args || {}),
+							},
+						}));
+					}
+					promptTokens = data.usageMetadata?.promptTokenCount || 0;
+					completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
+					totalTokens = data.usageMetadata?.totalTokenCount || (promptTokens + completionTokens);
+				} else if (Array.isArray(data?.output)) {
+					// OpenAI Responses API shape: { output:[{ type:"message", content:[{ type:"output_text", text }] }], usage:{ input_tokens, output_tokens } }
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const textBlocks = data.output
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						.flatMap((o: any) => Array.isArray(o?.content) ? o.content : [])
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						.filter((c: any) => c?.type === 'output_text' || c?.type === 'text');
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					content = textBlocks.map((c: any) => c?.text || '').join('') || JSON.stringify(data.output);
+					promptTokens = data.usage?.input_tokens || 0;
+					completionTokens = data.usage?.output_tokens || 0;
+					totalTokens = data.usage?.total_tokens || (promptTokens + completionTokens);
 				} else if (Array.isArray(data?.predictions)) {
-					// Native MLflow shape — stringify predictions for downstream use
+					// MLflow native shape — stringify predictions for downstream use
 					const first = data.predictions[0];
 					content = typeof first === 'string' ? first : JSON.stringify(data.predictions);
-					// Native responses don't include usage data
+					// Native MLflow responses don't include usage data
+				} else if (typeof data?.text === 'string') {
+					// Minimal text-only response (some custom MLflow endpoints)
+					content = data.text;
 				} else {
 					// Unknown shape — return raw JSON, log warning
-					logger.warn(`[Pay-i Databricks] Unrecognized response shape, returning raw: ${JSON.stringify(data).substring(0, 200)}`);
+					logger.warn(`[Pay-i Databricks] Unrecognized response shape, returning raw: ${JSON.stringify(data).substring(0, 400)}`);
 					content = JSON.stringify(data);
 				}
 

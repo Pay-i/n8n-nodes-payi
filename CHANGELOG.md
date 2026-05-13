@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.1-rc.2] - 2026-05-13
+
+### Added
+- **Response parser now handles Gemini-native and OpenAI Responses API shapes** in the Pay-i Databricks (Proxy) chat model node. Custom adapter previously only parsed OpenAI Chat Completions and MLflow native (`predictions[]`) shapes — anything else fell through to JSON.stringify. New parsers:
+  - **Gemini native**: extracts text from `candidates[].content.parts[].text`, converts `functionCall` parts to OpenAI-shape `tool_calls`, reads `usageMetadata.{promptTokenCount,candidatesTokenCount,totalTokenCount}` for token tracking. Required for `databricks-gemini-2-5-flash`, `databricks-gemini-2-5-pro`, and similar Gemini-family endpoints.
+  - **OpenAI Responses API**: extracts text from `output[].content[].text` (where `content[].type === 'output_text'`), reads `usage.{input_tokens,output_tokens,total_tokens}`. Required for endpoints advertising `api_types: ["openai/v1/responses"]` (e.g. `databricks-gpt-5-5-pro`, `databricks-gpt-5-3-codex`).
+  - **Minimal `{text: "..."}` shape**: catches some custom MLflow endpoints that return a single string.
+- All non-standard response shapes fall back to the unknown-shape stringify path with a clearer log message (raw body truncated to 400 chars for debugging).
+
 ## [0.3.1-rc.1] - 2026-05-12
 
 **Release candidate** for 0.3.1. Includes architectural rewrite of the Databricks routing path on top of the original 0.3.1 scope. Final 0.3.1 will tag once this RC validates in customer testing.
