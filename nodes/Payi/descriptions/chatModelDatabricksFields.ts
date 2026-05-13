@@ -4,11 +4,27 @@ export const chatModelDatabricksFields: INodeProperties[] = [
 	{
 		displayName: 'Serving Endpoint Name',
 		name: 'endpointName',
-		type: 'string',
-		default: '',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		placeholder: 'e.g. my-llm-endpoint, databricks-meta-llama-3-3-70b-instruct',
 		description: 'The name of the Databricks Model Serving endpoint',
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				typeOptions: {
+					searchListMethod: 'getServingEndpoints',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By Name',
+				name: 'name',
+				type: 'string',
+				placeholder: 'e.g. databricks-gpt-5-4',
+			},
+		],
 	},
 	{
 		displayName: 'Deployed Model',

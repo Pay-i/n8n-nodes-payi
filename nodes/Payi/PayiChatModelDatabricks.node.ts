@@ -2,6 +2,8 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	ISupplyDataFunctions,
+	ILoadOptionsFunctions,
+	INodeListSearchResult,
 	SupplyData,
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
@@ -22,8 +24,9 @@ function payiLog(msg: string) {
 	fs.appendFileSync(PAYI_DEBUG_LOG, line);
 }
 
-function deriveServingEndpointsUrl(workspaceUrl: string): string {
-	return workspaceUrl.replace(/\/+$/, '') + '/serving-endpoints';
+function deriveProviderBaseUri(workspaceUrl: string): string {
+	const url = new URL(workspaceUrl);
+	return `${url.protocol}//${url.host}`;
 }
 
 export class PayiChatModelDatabricks implements INodeType {
@@ -64,6 +67,53 @@ export class PayiChatModelDatabricks implements INodeType {
 		],
 	};
 
+	methods = {
+		listSearch: {
+			async getServingEndpoints(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const credentials = await this.getCredentials('payiDatabricksApi');
+				const host = (credentials.workspaceUrl as string).replace(/\/+$/, '');
+				const token = credentials.accessToken as string;
+
+				const response = await this.helpers.httpRequest({
+					method: 'GET',
+					url: `${host}/api/2.0/serving-endpoints`,
+					headers: {
+						Authorization: `Bearer ${token}`,
+						Accept: 'application/json',
+					},
+					json: true,
+				}) as { endpoints?: Array<{ name: string; config?: { served_entities?: Array<{ external_model?: { name?: string }; foundation_model?: { name?: string } }> } }> };
+
+				const endpoints = response.endpoints ?? [];
+
+				const allResults = endpoints.map((endpoint) => {
+					const modelNames = (endpoint.config?.served_entities || [])
+						.map((entity) => entity.external_model?.name || entity.foundation_model?.name)
+						.filter(Boolean)
+						.join(', ');
+
+					return {
+						name: endpoint.name,
+						value: endpoint.name,
+						description: modelNames || undefined,
+					};
+				}).sort((a, b) => a.name.localeCompare(b.name));
+
+				if (filter) {
+					const filterLower = filter.toLowerCase();
+					return {
+						results: allResults.filter((r) =>
+							r.name.toLowerCase().includes(filterLower) ||
+							(r.description && r.description.toLowerCase().includes(filterLower)),
+						),
+					};
+				}
+
+				return { results: allResults };
+			},
+		},
+	};
+
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		payiLog(`supplyData called for item ${itemIndex}`);
 
@@ -78,7 +128,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		const accessToken = databricksCredentials.accessToken as string;
 		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
-		const endpointName = this.getNodeParameter('endpointName', itemIndex) as string;
+		const endpointName = this.getNodeParameter('endpointName', itemIndex, '', { extractValue: true }) as string;
 		const deployedModel = this.getNodeParameter('deployedModel', itemIndex, '') as string;
 		const cloudProvider = this.getNodeParameter('cloudProvider', itemIndex) as string;
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
@@ -111,7 +161,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		}
 		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
 
-		const providerBaseUri = deriveServingEndpointsUrl(workspaceUrl);
+		const providerBaseUri = deriveProviderBaseUri(workspaceUrl);
 
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
