@@ -14,14 +14,14 @@ export function createTrackingFields(
 ): INodeProperties[] {
 	return [
 		{
-			displayName: 'xProxy-User-ID',
+			displayName: 'User ID',
 			name: 'userId',
 			type: 'string',
 			default: '',
 			description: 'User identifier for cost attribution',
 		},
 		{
-			displayName: 'xProxy-UseCase-Name',
+			displayName: 'Use Case Name',
 			name: 'useCaseName',
 			type: 'string',
 			default: `={{ $workflow.name.replaceAll(' ', '-') }}`,
@@ -29,7 +29,7 @@ export function createTrackingFields(
 				'Use case definition name for tracking and KPI scoring. Defaults to the workflow name (spaces replaced with hyphens).',
 		},
 		{
-			displayName: 'xProxy-UseCase-ID',
+			displayName: 'Use Case ID',
 			name: 'useCaseId',
 			type: 'string',
 			default: `={{ '${providerName}/' + $parameter.${modelParam} + '/' + $execution.id }}`,
@@ -37,7 +37,7 @@ export function createTrackingFields(
 				'Unique identifier for this use case instance. Defaults to provider/model/executionId.',
 		},
 		{
-			displayName: 'xProxy-UseCase-Step',
+			displayName: 'Use Case Step',
 			name: 'useCaseStep',
 			type: 'string',
 			default: '={{ $node.name }}',
@@ -54,14 +54,14 @@ export function createTrackingFields(
 			default: {},
 			options: [
 				{
-					displayName: 'xProxy-UseCase-Version',
+					displayName: 'Use Case Version',
 					name: 'useCaseVersion',
 					type: 'string',
 					default: '',
 					description: 'Version of the use case definition',
 				},
 				{
-					displayName: 'xProxy-UseCase-Properties',
+					displayName: 'Use Case Properties',
 					name: 'useCaseProperties',
 					type: 'json',
 					default: '',
@@ -69,7 +69,7 @@ export function createTrackingFields(
 						'JSON object of key-value properties (e.g. {"department": "support"})',
 				},
 				{
-					displayName: 'xProxy-Limit-IDs',
+					displayName: 'Limit IDs',
 					name: 'limitIds',
 					type: 'string',
 					default: '',

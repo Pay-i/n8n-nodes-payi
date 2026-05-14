@@ -3,6 +3,8 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	ISupplyDataFunctions,
+	ILoadOptionsFunctions,
+	INodeListSearchResult,
 	SupplyData,
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
@@ -77,6 +79,53 @@ export class PayiChatModelDatabricks implements INodeType {
 		],
 	};
 
+	methods = {
+		listSearch: {
+			async getServingEndpoints(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const credentials = await this.getCredentials('payiDatabricksApi');
+				const host = (credentials.workspaceUrl as string).replace(/\/+$/, '');
+				const token = credentials.accessToken as string;
+
+				const response = await this.helpers.httpRequest({
+					method: 'GET',
+					url: `${host}/api/2.0/serving-endpoints`,
+					headers: {
+						Authorization: `Bearer ${token}`,
+						Accept: 'application/json',
+					},
+					json: true,
+				}) as { endpoints?: Array<{ name: string; config?: { served_entities?: Array<{ external_model?: { name?: string }; foundation_model?: { name?: string } }> } }> };
+
+				const endpoints = response.endpoints ?? [];
+
+				const allResults = endpoints.map((endpoint) => {
+					const modelNames = (endpoint.config?.served_entities || [])
+						.map((entity) => entity.external_model?.name || entity.foundation_model?.name)
+						.filter(Boolean)
+						.join(', ');
+
+					return {
+						name: endpoint.name,
+						value: endpoint.name,
+						description: modelNames || undefined,
+					};
+				}).sort((a, b) => a.name.localeCompare(b.name));
+
+				if (filter) {
+					const filterLower = filter.toLowerCase();
+					return {
+						results: allResults.filter((r) =>
+							r.name.toLowerCase().includes(filterLower) ||
+							(r.description && r.description.toLowerCase().includes(filterLower)),
+						),
+					};
+				}
+
+				return { results: allResults };
+			},
+		},
+	};
+
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		// Runtime imports — resolved through n8n's VM context, not bundled.
 		// We build a custom ChatModel adapter (not ChatOpenAI) so we can hit
@@ -117,7 +166,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		const accessToken = databricksCredentials.accessToken as string;
 		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
-		const endpointName = this.getNodeParameter('endpointName', itemIndex) as string;
+		const endpointName = this.getNodeParameter('endpointName', itemIndex, '', { extractValue: true }) as string;
 		const cloudProvider = this.getNodeParameter('cloudProvider', itemIndex) as string;
 		const priceAsResourceOverride = this.getNodeParameter('priceAsResource', itemIndex, '') as string;
 
@@ -212,6 +261,20 @@ export class PayiChatModelDatabricks implements INodeType {
 				return 'payi-databricks-native';
 			}
 
+			// Defensive: ensure that anywhere n8n / LangChain stringifies this model
+			// (trace UI, error logs, LangSmith spans), we publish a redacted view —
+			// never the closure-captured defaultHeaders or accessToken.
+			toJSON(): Record<string, unknown> {
+				return {
+					_llmType: 'payi-databricks-native',
+					endpoint: endpointName,
+					priceAsResource,
+					cloudProvider,
+					boundTools: this.boundTools?.length || 0,
+					credentials: '[redacted]',
+				};
+			}
+
 			// LangChain Tools Agent calls this. We clone ourselves with the tools attached
 			// and convert them to OpenAI tool format (Databricks foundation models accept it).
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -276,6 +339,40 @@ export class PayiChatModelDatabricks implements INodeType {
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const data: any = await response.json();
 
+				// Always log raw body in debug mode — so we can diagnose any unexpected shape
+				if (debugLogging) {
+					logger.info(`[Pay-i Databricks] Raw response body (first 800 chars): ${JSON.stringify(data).substring(0, 800)}`);
+				}
+
+				// Helper: normalize anything (string | array | object) into a single string.
+				// Critical for catching the "[object Object]" footgun when content is structured.
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const toContentString = (x: any): string => {
+					if (x == null) return '';
+					if (typeof x === 'string') return x;
+					if (Array.isArray(x)) {
+						// Multimodal Chat Completions content array: [{type:"text", text:"..."}, ...]
+						// Or Gemini parts array: [{text:"..."}, ...]
+						return x
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							.map((item: any) => {
+								if (typeof item === 'string') return item;
+								if (typeof item?.text === 'string') return item.text;
+								if (typeof item?.content === 'string') return item.content;
+								return '';
+							})
+							.join('');
+					}
+					if (typeof x === 'object') {
+						// Single object with a .text or .content field
+						if (typeof x.text === 'string') return x.text;
+						if (typeof x.content === 'string') return x.content;
+						// Last resort — surface the JSON so debugging is easier than "[object Object]"
+						return JSON.stringify(x);
+					}
+					return String(x);
+				};
+
 				// Parse response — handle OpenAI shape (with tool_calls) AND native predictions[] shape
 				let content: string;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -285,9 +382,10 @@ export class PayiChatModelDatabricks implements INodeType {
 				let totalTokens = 0;
 
 				if (data?.choices?.[0]?.message) {
-					// OpenAI Chat Completions shape (foundation models, custom chat-completion endpoints)
+					// OpenAI Chat Completions shape (foundation models, custom chat-completion endpoints).
+					// `content` may be a plain string OR an array of typed blocks (multimodal/new SDK shape).
 					const msg = data.choices[0].message;
-					content = msg.content != null ? String(msg.content) : '';
+					content = toContentString(msg.content);
 					toolCalls = msg.tool_calls;
 					promptTokens = data.usage?.prompt_tokens || 0;
 					completionTokens = data.usage?.completion_tokens || 0;
@@ -297,8 +395,7 @@ export class PayiChatModelDatabricks implements INodeType {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const candidate = data.candidates[0] as any;
 					const parts = candidate?.content?.parts || [];
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					content = parts.map((p: any) => p?.text || '').join('');
+					content = toContentString(parts);
 					// Gemini exposes function calls via parts[].functionCall — surface them as OpenAI-shape tool_calls
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const fnCalls = parts.filter((p: any) => p?.functionCall);
@@ -324,8 +421,8 @@ export class PayiChatModelDatabricks implements INodeType {
 						.flatMap((o: any) => Array.isArray(o?.content) ? o.content : [])
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						.filter((c: any) => c?.type === 'output_text' || c?.type === 'text');
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					content = textBlocks.map((c: any) => c?.text || '').join('') || JSON.stringify(data.output);
+					content = toContentString(textBlocks);
+					if (!content) content = JSON.stringify(data.output);
 					promptTokens = data.usage?.input_tokens || 0;
 					completionTokens = data.usage?.output_tokens || 0;
 					totalTokens = data.usage?.total_tokens || (promptTokens + completionTokens);
@@ -341,6 +438,13 @@ export class PayiChatModelDatabricks implements INodeType {
 					// Unknown shape — return raw JSON, log warning
 					logger.warn(`[Pay-i Databricks] Unrecognized response shape, returning raw: ${JSON.stringify(data).substring(0, 400)}`);
 					content = JSON.stringify(data);
+				}
+
+				// Final safety net — if any parser branch still produced a non-string, stringify it
+				// so the AI Agent never receives `[object Object]` as the chat content.
+				if (typeof content !== 'string') {
+					logger.warn(`[Pay-i Databricks] content was non-string (${typeof content}) after parsing — JSON-stringifying as fallback`);
+					content = JSON.stringify(content);
 				}
 
 				if (debugLogging) {
