@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-payi",
-	"version": "0.3.3",
+	"version": "0.3.4",
 	"description": "n8n community node for routing LLM requests through Pay-i proxy with cost tracking and budget enforcement",
 	"keywords": [
 		"n8n-community-node-package",
@@ -50,6 +50,7 @@
 		]
 	},
 	"devDependencies": {
+		"@types/node": "^22",
 		"eslint": "^10.1.0",
 		"n8n-workflow": "*",
 		"prettier": "~3.3.0",
