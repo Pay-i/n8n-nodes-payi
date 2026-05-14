@@ -26,7 +26,7 @@ function payiLog(msg: string) {
 
 function deriveProviderBaseUri(workspaceUrl: string): string {
 	const url = new URL(workspaceUrl);
-	return `${url.protocol}//${url.host}`;
+	return `${url.protocol}//${url.host}/serving-endpoints`;
 }
 
 export class PayiChatModelDatabricks implements INodeType {
@@ -150,6 +150,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		const useCaseProperties = advancedTracking.useCaseProperties || '';
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
+		const flattenContent = (advancedTracking as Record<string, unknown>).flattenContent !== false;
 
 		if (userId) trackingHeaders['xProxy-User-ID'] = userId;
 		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = useCaseName;
@@ -213,7 +214,8 @@ export class PayiChatModelDatabricks implements INodeType {
 		payiLog(`Model configured: baseURL=${payiBaseUrl}/api/v1/proxy/openai/v1, model=${endpointName}`);
 		payiLog(`Options: ${JSON.stringify(options)}`);
 
-		// Patch completionWithRetry to capture raw request/response
+		// Patch completionWithRetry to normalize structured content and optionally log
+		const logger = debugLogging ? this.logger : null;
 		const origCompletionWithRetry = (model as any).completionWithRetry.bind(model); // eslint-disable-line @typescript-eslint/no-explicit-any
 		(model as any).completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
 			payiLog(`──── RAW REQUEST TO OPENAI SDK ────`);
@@ -222,30 +224,35 @@ export class PayiChatModelDatabricks implements INodeType {
 			payiLog(`ClientConfig defaultHeaders: ${JSON.stringify((model as any).clientConfig?.defaultHeaders || {})}`); // eslint-disable-line @typescript-eslint/no-explicit-any
 			try {
 				const result = await origCompletionWithRetry(request, opts);
-				// Normalize structured content blocks to a plain string.
-				// Some models (e.g. Claude via Databricks) return content as an array
-				// of objects [{type:"text", text:"..."}] which LangChain doesn't handle.
-				// if (result?.choices) {
-				// 	for (const choice of result.choices) {
-				// 		if (Array.isArray(choice?.message?.content)) {
-				// 			choice.message.content = choice.message.content
-				// 				.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
-				// 				.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
-				// 				.join('');
-				// 		}
-				// 	}
-				// }
+				// Flatten structured content blocks to a plain string.
+				// Some models (e.g. Gemini/Claude via Databricks) return content as
+				// [{type:"text", text:"...", ...}] which is non-standard for the
+				// OpenAI chat completion contract. LangChain expects a string.
+				if (flattenContent && result?.choices) {
+					for (const choice of result.choices) {
+						if (Array.isArray(choice?.message?.content)) {
+							choice.message.content = choice.message.content
+								.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
+								.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
+								.join('');
+						}
+					}
+				}
 				payiLog(`──── RAW RESPONSE FROM OPENAI SDK ────`);
 				payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
+				if (logger) {
+					logger.info(`[Pay-i Databricks] Result: ${JSON.stringify(result).substring(0, 3000)}`);
+				}
 				return result;
 			} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
 				payiLog(`──── ERROR FROM OPENAI SDK ────`);
 				payiLog(`Error: ${err.message || err}`);
 				payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
-				payiLog(`Headers: ${JSON.stringify(err.headers || err.responseHeaders || {})}`);
-				payiLog(`Body: ${err.body || err.responseBody || ''}`);
-				payiLog(`Error object keys: ${Object.keys(err).join(', ')}`);
 				payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
+				if (logger) {
+					logger.info(`[Pay-i Databricks] Error: ${err.message || err}`);
+					logger.info(`[Pay-i Databricks] Status: ${err.status || err.statusCode || 'unknown'}`);
+				}
 				throw err;
 			}
 		};

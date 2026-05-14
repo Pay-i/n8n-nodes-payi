@@ -76,6 +76,14 @@ export function createTrackingFields(
 					description: 'Comma-separated list of Pay-i limit IDs to enforce',
 				},
 				{
+					displayName: 'Flatten Gemini Content',
+					name: 'flattenContent',
+					type: 'boolean',
+					default: true,
+					description:
+						'Flatten Gemini content blocks into a plain text string (fixes Databricks schema translation issue). Disable if you need the raw content array preserved.',
+				},
+				{
 					displayName: 'Debug Logging',
 					name: 'debugLogging',
 					type: 'boolean',
