@@ -1,24 +1,32 @@
- 
 import type {
 	INodeType,
 	INodeTypeDescription,
 	ISupplyDataFunctions,
+	ILoadOptionsFunctions,
+	INodeListSearchResult,
 	SupplyData,
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { chatModelDatabricksFields } from './descriptions/chatModelDatabricksFields';
 import { createTrackingFields } from './descriptions/trackingFields';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
-// Declared here so TypeScript accepts the require() calls.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-// Databricks Model Serving exposes its OpenAI-compatible chat endpoint at
-// `<workspace>/serving-endpoints/chat/completions`. The OpenAI client appends
-// `/chat/completions`, so the base URI we hand Pay-i is `<workspace>/serving-endpoints`.
-function deriveServingEndpointsUrl(workspaceUrl: string): string {
-	return workspaceUrl.replace(/\/+$/, '') + '/serving-endpoints';
+const PAYI_DEBUG_LOG = path.join(process.env.HOME || '/tmp', '.n8n', 'payi-databricks-debug.log');
+const PAYI_FILE_DEBUG_ENABLED = process.env.PAYI_FILE_DEBUG === '1';
+function payiLog(msg: string) {
+	if (!PAYI_FILE_DEBUG_ENABLED) return;
+	const line = `[${new Date().toISOString()}] ${msg}\n`;
+	fs.appendFileSync(PAYI_DEBUG_LOG, line);
+}
+
+function deriveProviderBaseUri(workspaceUrl: string): string {
+	const url = new URL(workspaceUrl);
+	return `${url.protocol}//${url.host}/serving-endpoints`;
 }
 
 export class PayiChatModelDatabricks implements INodeType {
@@ -59,10 +67,56 @@ export class PayiChatModelDatabricks implements INodeType {
 		],
 	};
 
+	methods = {
+		listSearch: {
+			async getServingEndpoints(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const credentials = await this.getCredentials('payiDatabricksApi');
+				const host = (credentials.workspaceUrl as string).replace(/\/+$/, '');
+				const token = credentials.accessToken as string;
+
+				const response = await this.helpers.httpRequest({
+					method: 'GET',
+					url: `${host}/api/2.0/serving-endpoints`,
+					headers: {
+						Authorization: `Bearer ${token}`,
+						Accept: 'application/json',
+					},
+					json: true,
+				}) as { endpoints?: Array<{ name: string; config?: { served_entities?: Array<{ external_model?: { name?: string }; foundation_model?: { name?: string } }> } }> };
+
+				const endpoints = response.endpoints ?? [];
+
+				const allResults = endpoints.map((endpoint) => {
+					const modelNames = (endpoint.config?.served_entities || [])
+						.map((entity) => entity.external_model?.name || entity.foundation_model?.name)
+						.filter(Boolean)
+						.join(', ');
+
+					return {
+						name: endpoint.name,
+						value: endpoint.name,
+						description: modelNames || undefined,
+					};
+				}).sort((a, b) => a.name.localeCompare(b.name));
+
+				if (filter) {
+					const filterLower = filter.toLowerCase();
+					return {
+						results: allResults.filter((r) =>
+							r.name.toLowerCase().includes(filterLower) ||
+							(r.description && r.description.toLowerCase().includes(filterLower)),
+						),
+					};
+				}
+
+				return { results: allResults };
+			},
+		},
+	};
+
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		// Runtime imports — resolved through n8n's VM context, not bundled
-		// We use ChatOpenAI because Databricks Model Serving exposes an
-		// OpenAI-compatible chat/completions endpoint.
+		payiLog(`supplyData called for item ${itemIndex}`);
+
 		const { ChatOpenAI } = require('@langchain/openai');
 		const { N8nLlmTracing, makeN8nLlmFailedAttemptHandler } = require('@n8n/ai-utilities');
 
@@ -74,22 +128,29 @@ export class PayiChatModelDatabricks implements INodeType {
 		const accessToken = databricksCredentials.accessToken as string;
 		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
-		const endpointName = this.getNodeParameter('endpointName', itemIndex) as string;
+		const endpointName = this.getNodeParameter('endpointName', itemIndex, '', { extractValue: true }) as string;
+		const deployedModel = this.getNodeParameter('deployedModel', itemIndex, '') as string;
 		const cloudProvider = this.getNodeParameter('cloudProvider', itemIndex) as string;
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
+
+		if (!deployedModel && !endpointName.startsWith('databricks-')) {
+			throw new Error(
+				'Deployed Model is required for custom serving endpoints (those not starting with "databricks-").',
+			);
+		}
 
 		// Build tracking headers
 		const trackingHeaders: Record<string, string> = {};
 		const userId = this.getNodeParameter('userId', itemIndex, '') as string;
 		const useCaseName = this.getNodeParameter('useCaseName', itemIndex, '') as string;
 		const useCaseId = this.getNodeParameter('useCaseId', itemIndex, '') as string;
-		// Advanced tracking fields (collapsed in UI under "Advanced Tracking")
 		const advancedTracking = this.getNodeParameter('advancedTracking', itemIndex, {}) as Record<string, string>;
 		const useCaseVersion = advancedTracking.useCaseVersion || '';
 		const useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
 		const useCaseProperties = advancedTracking.useCaseProperties || '';
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
+		const flattenContent = (advancedTracking as Record<string, unknown>).flattenContent !== false;
 
 		if (userId) trackingHeaders['xProxy-User-ID'] = userId;
 		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = useCaseName;
@@ -101,21 +162,17 @@ export class PayiChatModelDatabricks implements INodeType {
 		}
 		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
 
-		const timeout = options.timeout as number | undefined;
-
-		const providerBaseUri = deriveServingEndpointsUrl(workspaceUrl);
-
-		// Route through Pay-i's OpenAI proxy path (Databricks is OpenAI-compatible)
-		const baseURL = `${payiBaseUrl}/api/v1/proxy/openai/v1`;
+		const providerBaseUri = deriveProviderBaseUri(workspaceUrl);
 
 		const defaultHeaders: Record<string, string> = {
 			'xProxy-Api-Key': payiApiKey,
 			'xProxy-Provider-BaseUri': providerBaseUri,
 			'xProxy-PriceAs-Category': `system.databricks.${cloudProvider}`,
-			'xProxy-PriceAs-Resource': endpointName,
-			Authorization: `Bearer ${accessToken}`,
 			...trackingHeaders,
 		};
+		if (deployedModel) {
+			defaultHeaders['xProxy-PriceAs-Resource'] = deployedModel;
+		}
 
 		if (debugLogging) {
 			const mask = (v: string) => v.length <= 8 ? '****' : v.substring(0, 8) + '****';
@@ -123,7 +180,7 @@ export class PayiChatModelDatabricks implements INodeType {
 			this.logger.info(`[Pay-i Databricks] workspaceUrl="${workspaceUrl}"`);
 			this.logger.info(`[Pay-i Databricks] → providerBaseUri="${providerBaseUri}"`);
 			this.logger.info(`[Pay-i Databricks] endpoint="${endpointName}" cloud="${cloudProvider}"`);
-			this.logger.info(`[Pay-i Databricks] baseURL="${baseURL}"`);
+			this.logger.info(`[Pay-i Databricks] baseURL="${payiBaseUrl}/api/v1/proxy/openai/v1"`);
 			const masked = Object.fromEntries(
 				Object.entries(defaultHeaders).map(([k, v]) =>
 					['xProxy-Api-Key', 'Authorization'].includes(k) ? [k, mask(v)] : [k, v],
@@ -132,19 +189,73 @@ export class PayiChatModelDatabricks implements INodeType {
 			this.logger.info(`[Pay-i Databricks] Headers: ${JSON.stringify(masked, null, 2)}`);
 		}
 
+		// Pass redacted headers for serialization (visible in n8n trace UI),
+		// then replace with real headers on the live client config.
+		const redactedHeaders: Record<string, string> = { ...defaultHeaders };
+		if (redactedHeaders['xProxy-Api-Key']) {
+			redactedHeaders['xProxy-Api-Key'] = '***';
+		}
+
 		const model = new ChatOpenAI({
 			apiKey: accessToken,
 			model: endpointName,
 			...options,
-			timeout,
-			maxRetries: (options.maxRetries as number) ?? 2,
 			configuration: {
-				baseURL,
-				defaultHeaders,
+				baseURL: `${payiBaseUrl}/api/v1/proxy/openai/v1`,
+				defaultHeaders: redactedHeaders,
 			},
 			callbacks: [new N8nLlmTracing(this)],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),
 		});
+
+		// Replace redacted headers with real ones on the live client config
+		(model as any).clientConfig.defaultHeaders = defaultHeaders; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+		payiLog(`Model configured: baseURL=${payiBaseUrl}/api/v1/proxy/openai/v1, model=${endpointName}`);
+		payiLog(`Options: ${JSON.stringify(options)}`);
+
+		// Patch completionWithRetry to normalize structured content and optionally log
+		const logger = debugLogging ? this.logger : null;
+		const origCompletionWithRetry = (model as any).completionWithRetry.bind(model); // eslint-disable-line @typescript-eslint/no-explicit-any
+		(model as any).completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+			payiLog(`──── RAW REQUEST TO OPENAI SDK ────`);
+			payiLog(`Request params: ${JSON.stringify(request).substring(0, 5000)}`);
+			payiLog(`ClientConfig baseURL: ${(model as any).clientConfig?.baseURL || 'not set'}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+			payiLog(`ClientConfig defaultHeaders: ${JSON.stringify((model as any).clientConfig?.defaultHeaders || {})}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+			try {
+				const result = await origCompletionWithRetry(request, opts);
+				// Flatten structured content blocks to a plain string.
+				// Some models (e.g. Gemini/Claude via Databricks) return content as
+				// [{type:"text", text:"...", ...}] which is non-standard for the
+				// OpenAI chat completion contract. LangChain expects a string.
+				if (flattenContent && result?.choices) {
+					for (const choice of result.choices) {
+						if (Array.isArray(choice?.message?.content)) {
+							choice.message.content = choice.message.content
+								.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
+								.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
+								.join('');
+						}
+					}
+				}
+				payiLog(`──── RAW RESPONSE FROM OPENAI SDK ────`);
+				payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
+				if (logger) {
+					logger.info(`[Pay-i Databricks] Result: ${JSON.stringify(result).substring(0, 3000)}`);
+				}
+				return result;
+			} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+				payiLog(`──── ERROR FROM OPENAI SDK ────`);
+				payiLog(`Error: ${err.message || err}`);
+				payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
+				payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
+				if (logger) {
+					logger.info(`[Pay-i Databricks] Error: ${err.message || err}`);
+					logger.info(`[Pay-i Databricks] Status: ${err.status || err.statusCode || 'unknown'}`);
+				}
+				throw err;
+			}
+		};
 
 		return {
 			response: model,
