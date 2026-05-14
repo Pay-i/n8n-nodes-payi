@@ -18,11 +18,13 @@ jobs:
         with:
           node-version: "22.x"
           registry-url: "https://registry.npmjs.org"
-          token: ${{ secrets.NODE_AUTH_TOKEN }}
+      # Trusted Publishing via OIDC requires npm >= 11.5.1; Node 22 ships npm 10.
+      - run: npm install -g npm@latest
       # --ignore-scripts skips native-module compilation (e.g., isolated-vm via
       # n8n-workflow's transitive deps). We don't need those compiled for the
       # publish step — only dist/ is published (per `files` in package.json).
       - run: npm ci --ignore-scripts
+      # Trusted Publishing via OIDC — no token needed.
+      # Requires id-token: write permission (set above) AND the workflow
+      # registered as a trusted publisher on npmjs.com.
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
