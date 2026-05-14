@@ -1,6 +1,7 @@
 # Build output
 dist/
 *.tgz
+*.zip
 
 # Dependencies
 node_modules/
@@ -26,3 +27,13 @@ coverage/
 todos/
 Plans and Docs/
 *.mp4
+.claude/
+*.skill
+blargh/
+customer-test-bundle/
+docs/archive/
+docs/reference/
+docs/sysops/
+docs/superpowers/
+docs/directshot-cross-team-brief.md
+*.workflow.json
