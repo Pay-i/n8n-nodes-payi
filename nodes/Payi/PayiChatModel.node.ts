@@ -47,7 +47,7 @@ export class PayiChatModel implements INodeType {
 		],
 		properties: [
 			...chatModelFields,
-			...createTrackingFields('openai', 'model'),
+			...createTrackingFields('openai', 'model', 'Pay-i OpenAI (Proxy)'),
 		],
 	};
 

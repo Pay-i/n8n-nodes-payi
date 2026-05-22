@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - **Use Case ID default is now the n8n node ID.** New Pay-i nodes added to a workflow default `xProxy-UseCase-ID` to `={{ $nodeId }}` (a stable UUID per canvas node) instead of `provider/model/executionId`. This makes a single canvas node behave as one Pay-i use case across all of its executions, so cost and KPI data aggregate cleanly per logical step. Existing nodes in saved workflows keep their old expression and are unaffected — clear the Use Case ID field on a node to pick up the new default. Use Case Name (workflow name) is unchanged.
 
 ### Fixed
-- **Use Case Step default no longer throws an expression error.** The previous default `={{ $node.name }}` was invalid — `$node` in n8n is a lookup proxy for *other* nodes, not an accessor for the current node, so the expression threw "The node 'name' doesn't exist." Default changed to `={{ $nodeId }}`. Override with any readable string (e.g. "Step 1 - Outline") when you want a human-friendly step label. Existing workflows with the old default will continue to throw until the field is cleared and re-defaulted, or replaced with a literal value.
+- **Use Case Step default no longer throws an expression error.** The previous default `={{ $node.name }}` was invalid — `$node` in n8n is a lookup proxy for *other* nodes, not an accessor for the current node, so the expression threw "The node 'name' doesn't exist." Default is now a literal node display name (e.g. `Pay-i Databricks (Proxy)`), passed in by each node so a sensible Step header is sent without any expression evaluation. Override with a custom label (e.g. "Step 1 - Outline") for multi-step workflows.
 
 ## [1.0.2] - 2026-06-01
 

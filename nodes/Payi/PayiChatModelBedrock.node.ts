@@ -48,7 +48,7 @@ export class PayiChatModelBedrock implements INodeType {
 		],
 		properties: [
 			...chatModelBedrockFields,
-			...createTrackingFields('bedrock', 'model'),
+			...createTrackingFields('bedrock', 'model', 'Pay-i Amazon Bedrock (Proxy)'),
 		],
 	};
 

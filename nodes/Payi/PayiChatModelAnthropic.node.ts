@@ -48,7 +48,7 @@ export class PayiChatModelAnthropic implements INodeType {
 		],
 		properties: [
 			...chatModelAnthropicFields,
-			...createTrackingFields('anthropic', 'model'),
+			...createTrackingFields('anthropic', 'model', 'Pay-i Anthropic (Proxy)'),
 		],
 	};
 

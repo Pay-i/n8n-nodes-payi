@@ -63,7 +63,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		],
 		properties: [
 			...chatModelDatabricksFields,
-			...createTrackingFields('databricks', 'endpointName'),
+			...createTrackingFields('databricks', 'endpointName', 'Pay-i Databricks (Proxy)'),
 		],
 	};
 

@@ -48,7 +48,7 @@ export class PayiChatModelAzure implements INodeType {
 		],
 		properties: [
 			...chatModelAzureFields,
-			...createTrackingFields('azure', 'deploymentName'),
+			...createTrackingFields('azure', 'deploymentName', 'Pay-i Azure AI Foundry (Proxy)'),
 		],
 	};
 

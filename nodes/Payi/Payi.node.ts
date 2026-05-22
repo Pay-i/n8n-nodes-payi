@@ -111,7 +111,7 @@ export class Payi implements INodeType {
 				description:
 					'When set, this JSON body is sent directly to the API, bypassing all structured fields above',
 			},
-			...createTrackingFields('proxy', 'model'),
+			...createTrackingFields('proxy', 'model', 'Pay-i Proxy'),
 			...outputFields,
 		],
 	};

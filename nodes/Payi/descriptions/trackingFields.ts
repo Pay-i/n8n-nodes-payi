@@ -3,16 +3,19 @@ import type { INodeProperties } from 'n8n-workflow';
 /**
  * Build the shared Pay-i tracking fields for a specific provider node.
  *
- * @param _providerName  Short provider tag used in the UseCase-ID
+ * @param _providerName  Short provider tag reserved for future per-provider customization
  *                       (e.g. "openai", "anthropic", "azure", "bedrock", "proxy").
  * @param _modelParam    Name of the node parameter that holds the model /
- *                       deployment identifier (e.g. "model" or "deploymentName").
+ *                       deployment identifier (e.g. "model" or "deploymentName"). Reserved.
+ * @param nodeDisplayName  The display name of the calling node, used as the literal
+ *                         default for `Use Case Step` (e.g. "Pay-i Databricks (Proxy)").
  */
 export function createTrackingFields(
 	_providerName: string,
 	_modelParam: string,
+	nodeDisplayName: string,
 ): INodeProperties[] {
-	// Parameters reserved for future per-provider customization.
+	// _providerName / _modelParam reserved for future per-provider customization.
 	return [
 		{
 			displayName: 'User ID',
@@ -41,9 +44,9 @@ export function createTrackingFields(
 			displayName: 'Use Case Step',
 			name: 'useCaseStep',
 			type: 'string',
-			default: `={{ $nodeId }}`,
+			default: nodeDisplayName,
 			description:
-				'The step within the use case. Defaults to the node ID. Override with a human-readable label (e.g. "Step 1 - Outline") for multi-step workflows.',
+				'The step within the use case. Defaults to the node display name. Override with a custom label (e.g. "Step 1 - Outline") when you have multiple Pay-i nodes in one workflow.',
 		},
 		{
 			displayName: 'Advanced Tracking',
