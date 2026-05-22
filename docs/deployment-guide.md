@@ -303,7 +303,7 @@ Pay-i's value comes from being able to slice cost and usage data in ways that ma
 | User ID | `userId` | Tags the request to a person or system account | Set to the n8n user, authenticated end user, or service identity |
 | Use Case Name | `useCaseName` | Tags the request to a workflow or business purpose | Set to something readable: `invoice-extraction`, `support-triage`, `code-review` |
 | Use Case ID | `useCaseId` | Identifies the logical use case (one canvas node = one use case) | Defaults to `{{ $nodeId }}` — the node's stable UUID. Override only when you need a correlation ID from an external system |
-| Use Case Step | `useCaseStep` | Tags a specific node within a workflow | Defaults to the node name — override when you have multiple Pay-i nodes in one workflow |
+| Use Case Step | `useCaseStep` | Tags a specific node within a workflow | Defaults to `{{ $nodeId }}` — override with a readable label when you have multiple Pay-i nodes in one workflow |
 
 ### Advanced Fields
 

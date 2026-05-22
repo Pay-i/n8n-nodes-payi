@@ -41,9 +41,9 @@ export function createTrackingFields(
 			displayName: 'Use Case Step',
 			name: 'useCaseStep',
 			type: 'string',
-			default: '={{ $node.name }}',
+			default: `={{ $nodeId }}`,
 			description:
-				'The step within the use case. Defaults to the node name on the canvas (e.g. "Step 1 - Outline").',
+				'The step within the use case. Defaults to the node ID. Override with a human-readable label (e.g. "Step 1 - Outline") for multi-step workflows.',
 		},
 		{
 			displayName: 'Advanced Tracking',
