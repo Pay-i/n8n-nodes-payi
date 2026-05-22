@@ -3,15 +3,16 @@ import type { INodeProperties } from 'n8n-workflow';
 /**
  * Build the shared Pay-i tracking fields for a specific provider node.
  *
- * @param providerName  Short provider tag used in the UseCase-ID
- *                      (e.g. "openai", "anthropic", "azure", "bedrock", "proxy").
- * @param modelParam    Name of the node parameter that holds the model /
- *                      deployment identifier (e.g. "model" or "deploymentName").
+ * @param _providerName  Short provider tag used in the UseCase-ID
+ *                       (e.g. "openai", "anthropic", "azure", "bedrock", "proxy").
+ * @param _modelParam    Name of the node parameter that holds the model /
+ *                       deployment identifier (e.g. "model" or "deploymentName").
  */
 export function createTrackingFields(
-	providerName: string,
-	modelParam: string,
+	_providerName: string,
+	_modelParam: string,
 ): INodeProperties[] {
+	// Parameters reserved for future per-provider customization.
 	return [
 		{
 			displayName: 'User ID',
@@ -32,9 +33,9 @@ export function createTrackingFields(
 			displayName: 'Use Case ID',
 			name: 'useCaseId',
 			type: 'string',
-			default: `={{ '${providerName}/' + $parameter.${modelParam} + '/' + $execution.id }}`,
+			default: `={{ $nodeId }}`,
 			description:
-				'Unique identifier for this use case instance. Defaults to provider/model/executionId.',
+				'Unique identifier for this use case instance. Defaults to the n8n node ID — all runs of the same node aggregate under one Pay-i use case.',
 		},
 		{
 			displayName: 'Use Case Step',
