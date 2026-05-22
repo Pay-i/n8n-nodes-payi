@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **Use Case ID default is now the n8n node ID.** New Pay-i nodes added to a workflow default `xProxy-UseCase-ID` to `={{ $nodeId }}` (a stable UUID per canvas node) instead of `provider/model/executionId`. This makes a single canvas node behave as one Pay-i use case across all of its executions, so cost and KPI data aggregate cleanly per logical step. Existing nodes in saved workflows keep their old expression and are unaffected — clear the Use Case ID field on a node to pick up the new default. Use Case Name (workflow name) and Use Case Step (node name) are unchanged.
+
 ## [1.0.2] - 2026-06-01
 
 ### Added
