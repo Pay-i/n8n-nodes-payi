@@ -233,73 +233,69 @@ export class PayiChatModelDatabricks implements INodeType {
 			this.logger.info(`[Pay-i Databricks] Headers: ${JSON.stringify(masked, null, 2)}`);
 		}
 
-		// Pass redacted headers for serialization (visible in n8n trace UI),
-		// then replace with real headers on the live client config.
-		const redactedHeaders: Record<string, string> = { ...defaultHeaders };
-		if (redactedHeaders['xProxy-Api-Key']) {
-			redactedHeaders['xProxy-Api-Key'] = '***';
-		}
-
 		const model = new ChatOpenAI({
 			apiKey: accessToken,
 			model: endpointName,
 			...options,
 			configuration: {
 				baseURL: `${payiBaseUrl}/api/v1/proxy/openai/v1`,
-				defaultHeaders: redactedHeaders,
+				defaultHeaders,
 			},
 			callbacks: [new N8nLlmTracing(this)],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),
 		});
 
-		// Replace redacted headers with real ones on the live client config
-		(model as any).clientConfig.defaultHeaders = defaultHeaders; // eslint-disable-line @typescript-eslint/no-explicit-any
-
 		payiLog(`Model configured: baseURL=${payiBaseUrl}/api/v1/proxy/openai/v1, model=${endpointName}`);
 		payiLog(`Options: ${JSON.stringify(options)}`);
 
-		// Patch completionWithRetry to normalize structured content and optionally log
+		// Patch completionWithRetry to normalize structured content and optionally log.
+		// In @langchain/openai@1.x, ChatOpenAI delegates _generate() to either
+		// `model.completions` (Chat Completions API) or `model.responses` (Responses API).
+		// completionWithRetry lives on those sub-objects, not on the model itself.
 		const logger = debugLogging ? this.logger : null;
-		const origCompletionWithRetry = (model as any).completionWithRetry.bind(model); // eslint-disable-line @typescript-eslint/no-explicit-any
-		(model as any).completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-			payiLog(`──── RAW REQUEST TO OPENAI SDK ────`);
-			payiLog(`Request params: ${JSON.stringify(request).substring(0, 5000)}`);
-			payiLog(`ClientConfig baseURL: ${(model as any).clientConfig?.baseURL || 'not set'}`); // eslint-disable-line @typescript-eslint/no-explicit-any
-			payiLog(`ClientConfig defaultHeaders: ${JSON.stringify((model as any).clientConfig?.defaultHeaders || {})}`); // eslint-disable-line @typescript-eslint/no-explicit-any
-			try {
-				const result = await origCompletionWithRetry(request, opts);
-				// Flatten structured content blocks to a plain string.
-				// Some models (e.g. Gemini/Claude via Databricks) return content as
-				// [{type:"text", text:"...", ...}] which is non-standard for the
-				// OpenAI chat completion contract. LangChain expects a string.
-				if (flattenContent && result?.choices) {
-					for (const choice of result.choices) {
-						if (Array.isArray(choice?.message?.content)) {
-							choice.message.content = choice.message.content
-								.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
-								.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
-								.join('');
+		const patchCompletionWithRetry = (target: any, label: string) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+			if (!target || typeof target.completionWithRetry !== 'function') return;
+			const orig = target.completionWithRetry.bind(target);
+			target.completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+				payiLog(`──── RAW REQUEST TO OPENAI SDK (${label}) ────`);
+				payiLog(`Request params: ${JSON.stringify(request).substring(0, 5000)}`);
+				try {
+					const result = await orig(request, opts);
+					// Flatten structured content blocks to a plain string.
+					// Some models (e.g. Gemini/Claude via Databricks) return content as
+					// [{type:"text", text:"...", ...}] which is non-standard for the
+					// OpenAI chat completion contract. LangChain expects a string.
+					if (flattenContent && result?.choices) {
+						for (const choice of result.choices) {
+							if (Array.isArray(choice?.message?.content)) {
+								choice.message.content = choice.message.content
+									.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
+									.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
+									.join('');
+							}
 						}
 					}
+					payiLog(`──── RAW RESPONSE FROM OPENAI SDK (${label}) ────`);
+					payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
+					if (logger) {
+						logger.info(`[Pay-i Databricks] Result: ${JSON.stringify(result).substring(0, 3000)}`);
+					}
+					return result;
+				} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+					payiLog(`──── ERROR FROM OPENAI SDK (${label}) ────`);
+					payiLog(`Error: ${err.message || err}`);
+					payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
+					payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
+					if (logger) {
+						logger.info(`[Pay-i Databricks] Error: ${err.message || err}`);
+						logger.info(`[Pay-i Databricks] Status: ${err.status || err.statusCode || 'unknown'}`);
+					}
+					throw err;
 				}
-				payiLog(`──── RAW RESPONSE FROM OPENAI SDK ────`);
-				payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
-				if (logger) {
-					logger.info(`[Pay-i Databricks] Result: ${JSON.stringify(result).substring(0, 3000)}`);
-				}
-				return result;
-			} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-				payiLog(`──── ERROR FROM OPENAI SDK ────`);
-				payiLog(`Error: ${err.message || err}`);
-				payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
-				payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
-				if (logger) {
-					logger.info(`[Pay-i Databricks] Error: ${err.message || err}`);
-					logger.info(`[Pay-i Databricks] Status: ${err.status || err.statusCode || 'unknown'}`);
-				}
-				throw err;
-			}
+			};
 		};
+		patchCompletionWithRetry((model as any).completions, 'completions'); // eslint-disable-line @typescript-eslint/no-explicit-any
+		patchCompletionWithRetry((model as any).responses, 'responses'); // eslint-disable-line @typescript-eslint/no-explicit-any
 
 		return {
 			response: model,

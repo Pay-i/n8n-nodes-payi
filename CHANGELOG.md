@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 - **Use Case Step default no longer throws an expression error.** The previous default `={{ $node.name }}` was invalid — `$node` in n8n is a lookup proxy for *other* nodes, not an accessor for the current node, so the expression threw "The node 'name' doesn't exist." Default is now a literal node display name (e.g. `Pay-i Databricks (Proxy)`), passed in by each node so a sensible Step header is sent without any expression evaluation. Override with a custom label (e.g. "Step 1 - Outline") for multi-step workflows.
+- **Pay-i Databricks (Proxy) chat model crashed with `Cannot read properties of undefined (reading 'bind')` on n8n 2.19.x.** `@langchain/openai@1.x` (shipped with current n8n) refactored `ChatOpenAI` so that `completionWithRetry` lives on `model.completions` and `model.responses` sub-objects rather than on the model instance itself. The node patched `model.completionWithRetry` directly, which is `undefined` in 1.x. Patches now apply to both `model.completions` and `model.responses` defensively, with a guard that no-ops if the structure changes again. Also dropped the redacted-then-swap header dance — real headers are now passed straight to the constructor (matching the OpenAI variant), since the post-construction `clientConfig.defaultHeaders` mutation was a fragile workaround whose effect depended on `this.client` being lazily initialized.
 
 ## [1.0.2] - 2026-06-01
 
