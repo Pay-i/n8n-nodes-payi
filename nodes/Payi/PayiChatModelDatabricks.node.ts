@@ -111,6 +111,50 @@ export class PayiChatModelDatabricks implements INodeType {
 
 				return { results: allResults };
 			},
+
+			async getDeployedModels(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+				const payiCredentials = await this.getCredentials('payiApi');
+				const payiBaseUrl = (payiCredentials.baseUrl as string).replace(/\/+$/, '');
+				const payiApiKey = payiCredentials.apiKey as string;
+
+				const cloudProvider = this.getNodeParameter('cloudProvider', '') as string;
+				const category = `system.databricks.${cloudProvider}`;
+
+				let response: { items?: Array<{ resource: string }> };
+				try {
+					response = await this.helpers.httpRequest({
+						method: 'GET',
+						url: `${payiBaseUrl}/api/v1/categories/${encodeURIComponent(category)}/resources`,
+						headers: {
+							'xProxy-api-key': payiApiKey,
+							Accept: 'application/json',
+						},
+						json: true,
+					});
+				} catch {
+					throw new Error(
+						'Could not retrieve deployed models from Pay-i. Please check your configured Pay-i credentials.',
+					);
+				}
+
+				const items = response.items ?? [];
+
+				const allResults = items
+					.map((item) => ({
+						name: item.resource,
+						value: item.resource,
+					}))
+					.sort((a, b) => a.name.localeCompare(b.name));
+
+				if (filter) {
+					const filterLower = filter.toLowerCase();
+					return {
+						results: allResults.filter((r) => r.name.toLowerCase().includes(filterLower)),
+					};
+				}
+
+				return { results: allResults };
+			},
 		},
 	};
 
@@ -129,7 +173,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		const workspaceUrl = (databricksCredentials.workspaceUrl as string).replace(/\/+$/, '');
 
 		const endpointName = this.getNodeParameter('endpointName', itemIndex, '', { extractValue: true }) as string;
-		const deployedModel = this.getNodeParameter('deployedModel', itemIndex, '') as string;
+		const deployedModel = this.getNodeParameter('deployedModel', itemIndex, '', { extractValue: true }) as string;
 		const cloudProvider = this.getNodeParameter('cloudProvider', itemIndex) as string;
 		const options = this.getNodeParameter('options', itemIndex, {}) as Record<string, unknown>;
 

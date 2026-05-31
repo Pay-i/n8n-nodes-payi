@@ -99,11 +99,10 @@ export const providerFields: INodeProperties[] = [
 			{ name: 'AWS', value: 'aws' },
 			{ name: 'Azure', value: 'azure' },
 			{ name: 'Google Cloud (GCP)', value: 'google' },
-			{ name: 'Databricks', value: 'databricks' },
 		],
 		default: 'aws',
 		required: true,
-		description: 'The cloud provider where your Databricks workspace is hosted (used for cost pricing). Choose Databricks for self-hosted, on-premises, or non-major-cloud deployments using cloud.databricks.com URLs.',
+		description: 'The cloud provider where your Databricks workspace is hosted (used for cost pricing)',
 		displayOptions: { show: { provider: ['databricks'] } },
 	},
 ];

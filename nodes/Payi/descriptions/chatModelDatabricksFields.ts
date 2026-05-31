@@ -29,11 +29,27 @@ export const chatModelDatabricksFields: INodeProperties[] = [
 	{
 		displayName: 'Deployed Model',
 		name: 'deployedModel',
-		type: 'string',
-		default: '',
-		placeholder: 'e.g. claude-sonnet-4-6, gpt-4o',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		description:
 			'The underlying model deployed behind the serving endpoint. Required for custom endpoints; optional for pre-provisioned "databricks-" foundation models.',
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				typeOptions: {
+					searchListMethod: 'getDeployedModels',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By Name',
+				name: 'name',
+				type: 'string',
+				placeholder: 'e.g. databricks-gpt-5',
+			},
+		],
 	},
 	{
 		displayName: 'Cloud Provider',
@@ -44,12 +60,11 @@ export const chatModelDatabricksFields: INodeProperties[] = [
 			{ name: 'AWS', value: 'aws' },
 			{ name: 'Azure', value: 'azure' },
 			{ name: 'Google Cloud (GCP)', value: 'google' },
-			{ name: 'Databricks', value: 'databricks' },
 		],
 		default: 'aws',
 		required: true,
 		description:
-			'The cloud provider where your Databricks workspace is hosted. Used for cost pricing. Azure workspaces (.azuredatabricks.net) are auto-detectable; AWS, GCP, and Databricks-hosted all use .cloud.databricks.com. Choose Databricks for self-hosted, on-premises, or non-major-cloud deployments.',
+			'The cloud provider where your Databricks workspace is hosted (used for cost pricing)',
 	},
 	{
 		displayName: 'Options',
