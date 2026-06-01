@@ -9,6 +9,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 
 import { chatModelBedrockFields } from './descriptions/chatModelBedrockFields';
 import { createTrackingFields } from './descriptions/trackingFields';
+import { sanitizeHeaderValue } from './utils/headers';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 // Declared here so TypeScript accepts the require() calls.
@@ -83,15 +84,15 @@ export class PayiChatModelBedrock implements INodeType {
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
 
-		if (userId) trackingHeaders['xProxy-User-ID'] = userId;
-		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = useCaseName;
-		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = useCaseId;
-		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = useCaseVersion;
-		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = useCaseStep;
+		if (userId) trackingHeaders['xProxy-User-ID'] = sanitizeHeaderValue(userId);
+		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = sanitizeHeaderValue(useCaseName);
+		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = sanitizeHeaderValue(useCaseId);
+		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = sanitizeHeaderValue(useCaseVersion);
+		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = sanitizeHeaderValue(useCaseStep);
 		if (useCaseProperties) {
-			trackingHeaders['xProxy-UseCase-Properties'] = useCaseProperties;
+			trackingHeaders['xProxy-UseCase-Properties'] = sanitizeHeaderValue(useCaseProperties);
 		}
-		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
+		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = sanitizeHeaderValue(limitIds);
 
 		// Build AWS credentials
 		const awsCredentials: Record<string, string> = {

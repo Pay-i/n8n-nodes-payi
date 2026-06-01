@@ -12,6 +12,7 @@ import * as path from 'path';
 
 import { chatModelDatabricksFields } from './descriptions/chatModelDatabricksFields';
 import { createTrackingFields } from './descriptions/trackingFields';
+import { sanitizeHeaderValue } from './utils/headers';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -196,15 +197,18 @@ export class PayiChatModelDatabricks implements INodeType {
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
 		const flattenContent = (advancedTracking as Record<string, unknown>).flattenContent !== false;
 
-		if (userId) trackingHeaders['xProxy-User-ID'] = userId;
-		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = useCaseName;
-		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = useCaseId;
-		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = useCaseVersion;
-		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = useCaseStep;
+		// Header values must be ASCII; canvas names / workflow names may include
+		// em-dashes, interpuncts, smart quotes etc. that crash node fetch or
+		// produce opaque 400s upstream. Sanitize every xProxy-* value at the source.
+		if (userId) trackingHeaders['xProxy-User-ID'] = sanitizeHeaderValue(userId);
+		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = sanitizeHeaderValue(useCaseName);
+		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = sanitizeHeaderValue(useCaseId);
+		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = sanitizeHeaderValue(useCaseVersion);
+		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = sanitizeHeaderValue(useCaseStep);
 		if (useCaseProperties) {
-			trackingHeaders['xProxy-UseCase-Properties'] = useCaseProperties;
+			trackingHeaders['xProxy-UseCase-Properties'] = sanitizeHeaderValue(useCaseProperties);
 		}
-		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
+		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = sanitizeHeaderValue(limitIds);
 
 		const providerBaseUri = deriveProviderBaseUri(workspaceUrl);
 
