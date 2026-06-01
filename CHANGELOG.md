@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-01
+
+### Added
+- **Auto-populate deployed models** in the Pay-i Databricks (Proxy) chat model node. The `Deployed Model` field is now a searchable resource locator that lists models registered under `system.databricks.<cloudProvider>` in Pay-i's resource catalog, fetched via `GET /api/v1/categories/.../resources` using the configured Pay-i credential. Falls back to a free-text "By Name" mode for models not yet registered. Removes the manual copy-paste step and the typo class of bugs that came with it.
+
 ## [0.3.1] - 2026-05-12
 
 ### Changed (Breaking)
