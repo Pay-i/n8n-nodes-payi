@@ -19,9 +19,25 @@ declare function require(module: string): any; // eslint-disable-line @typescrip
 
 const PAYI_DEBUG_LOG = path.join(process.env.HOME || '/tmp', '.n8n', 'payi-databricks-debug.log');
 const PAYI_FILE_DEBUG_ENABLED = process.env.PAYI_FILE_DEBUG === '1';
+
+// Mask sensitive keys before they hit disk. payiLog dumps full request/response
+// JSON which includes credential headers — without this, Pay-i and provider keys
+// land in plaintext in payi-databricks-debug.log.
+const SENSITIVE_KEYS = ['xProxy-Api-Key', 'Authorization', 'apiKey', 'api_key', 'openai_api_key'];
+const SECRET_PATTERNS: ReadonlyArray<RegExp> = SENSITIVE_KEYS.map(
+	(k) => new RegExp(`("${k}"\\s*:\\s*")([^"]+)(")`, 'gi'),
+);
+function redactSecrets(s: string): string {
+	let out = s;
+	for (const re of SECRET_PATTERNS) {
+		out = out.replace(re, (_m, p1, _val, p3) => `${p1}***REDACTED***${p3}`);
+	}
+	return out;
+}
+
 function payiLog(msg: string) {
 	if (!PAYI_FILE_DEBUG_ENABLED) return;
-	const line = `[${new Date().toISOString()}] ${msg}\n`;
+	const line = `[${new Date().toISOString()}] ${redactSecrets(msg)}\n`;
 	fs.appendFileSync(PAYI_DEBUG_LOG, line);
 }
 
