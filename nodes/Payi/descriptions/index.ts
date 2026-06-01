@@ -1,6 +1,7 @@
 export { providerFields } from './providerFields';
 export { createTrackingFields } from './trackingFields';
 export { outputFields } from './outputFields';
+export { versionNotice } from './versionNotice';
 export { chatModelFields } from './chatModelFields';
 export { chatModelAnthropicFields } from './chatModelAnthropicFields';
 export { chatModelAzureFields } from './chatModelAzureFields';

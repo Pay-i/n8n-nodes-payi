@@ -9,6 +9,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 
 import { chatModelBedrockFields } from './descriptions/chatModelBedrockFields';
 import { createTrackingFields } from './descriptions/trackingFields';
+import { versionNotice } from './descriptions/versionNotice';
 import { sanitizeHeaderValue } from './utils/headers';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
@@ -50,6 +51,7 @@ export class PayiChatModelBedrock implements INodeType {
 		properties: [
 			...chatModelBedrockFields,
 			...createTrackingFields('bedrock', 'model', 'Pay-i Amazon Bedrock (Proxy)'),
+			...versionNotice,
 		],
 	};
 

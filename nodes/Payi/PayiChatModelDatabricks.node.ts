@@ -12,6 +12,7 @@ import * as path from 'path';
 
 import { chatModelDatabricksFields } from './descriptions/chatModelDatabricksFields';
 import { createTrackingFields } from './descriptions/trackingFields';
+import { versionNotice } from './descriptions/versionNotice';
 import { sanitizeHeaderValue } from './utils/headers';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
@@ -81,6 +82,7 @@ export class PayiChatModelDatabricks implements INodeType {
 		properties: [
 			...chatModelDatabricksFields,
 			...createTrackingFields('databricks', 'endpointName', 'Pay-i Databricks (Proxy)'),
+			...versionNotice,
 		],
 	};
 

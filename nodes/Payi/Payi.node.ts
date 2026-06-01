@@ -12,6 +12,7 @@ import {
 	providerFields,
 	createTrackingFields,
 	outputFields,
+	versionNotice,
 } from './descriptions';
 import { buildProviderRequest } from './providers';
 
@@ -113,6 +114,7 @@ export class Payi implements INodeType {
 			},
 			...createTrackingFields('proxy', 'model', 'Pay-i Proxy'),
 			...outputFields,
+			...versionNotice,
 		],
 	};
 
