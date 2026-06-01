@@ -24,5 +24,19 @@ coverage/
 
 # Project internals
 todos/
+notes/
 Plans and Docs/
 *.mp4
+
+# Agent / IDE harness state
+.claude/
+.codex/
+
+# Local validation artifacts (workflow exports, customer bundles)
+*.workflow.json
+n8n-devwork-*.json
+customer-test-bundle/
+blargh/
+b2b-technical-editor.skill
+n8n-nodes-payi/
+*.zip
