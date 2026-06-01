@@ -9,6 +9,8 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 
 import { chatModelAzureFields } from './descriptions/chatModelAzureFields';
 import { createTrackingFields } from './descriptions/trackingFields';
+import { versionNotice } from './descriptions/versionNotice';
+import { sanitizeHeaderValue } from './utils/headers';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 // Declared here so TypeScript accepts the require() calls.
@@ -48,7 +50,8 @@ export class PayiChatModelAzure implements INodeType {
 		],
 		properties: [
 			...chatModelAzureFields,
-			...createTrackingFields('azure', 'deploymentName'),
+			...createTrackingFields('azure', 'deploymentName', 'Pay-i Azure AI Foundry (Proxy)'),
+			...versionNotice,
 		],
 	};
 
@@ -91,20 +94,26 @@ export class PayiChatModelAzure implements INodeType {
 		// Advanced tracking fields (collapsed in UI under "Advanced Tracking")
 		const advancedTracking = this.getNodeParameter('advancedTracking', itemIndex, {}) as Record<string, string>;
 		const useCaseVersion = advancedTracking.useCaseVersion || '';
-		const useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		// Canvas display name (e.g. "Pay-i Azure #4 - Summarizer") is more useful in
+		// Pay-i's dashboard than the generic node-type label. If the user hasn't
+		// changed the parameter from its hard-coded default, swap in the canvas name.
+		let useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		if (!useCaseStep || useCaseStep === 'Pay-i Azure AI Foundry (Proxy)') {
+			useCaseStep = this.getNode().name;
+		}
 		const useCaseProperties = advancedTracking.useCaseProperties || '';
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
 
-		if (userId) trackingHeaders['xProxy-User-ID'] = userId;
-		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = useCaseName;
-		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = useCaseId;
-		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = useCaseVersion;
-		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = useCaseStep;
+		if (userId) trackingHeaders['xProxy-User-ID'] = sanitizeHeaderValue(userId);
+		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = sanitizeHeaderValue(useCaseName);
+		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = sanitizeHeaderValue(useCaseId);
+		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = sanitizeHeaderValue(useCaseVersion);
+		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = sanitizeHeaderValue(useCaseStep);
 		if (useCaseProperties) {
-			trackingHeaders['xProxy-UseCase-Properties'] = useCaseProperties;
+			trackingHeaders['xProxy-UseCase-Properties'] = sanitizeHeaderValue(useCaseProperties);
 		}
-		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
+		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = sanitizeHeaderValue(limitIds);
 
 		const timeout = options.timeout as number | undefined;
 

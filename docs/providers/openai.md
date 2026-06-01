@@ -66,8 +66,8 @@ The following headers are included in every request when their corresponding nod
 | `xProxy-Api-Key` | _(Pay-i credential)_ | Required — always sent |
 | `xProxy-User-ID` | User ID | _(empty, omitted)_ |
 | `xProxy-UseCase-Name` | Use Case Name | `$workflow.name` (spaces → hyphens) |
-| `xProxy-UseCase-ID` | Use Case ID | `openai/{model}/{executionId}` |
-| `xProxy-UseCase-Step` | Use Case Step | Node name on canvas |
+| `xProxy-UseCase-ID` | Use Case ID | `{nodeId}` (UUID, stable per canvas node) |
+| `xProxy-UseCase-Step` | Use Case Step | Node display name (e.g. `Pay-i OpenAI (Proxy)`); override with a custom step label as needed |
 
 Advanced tracking headers (`xProxy-UseCase-Version`, `xProxy-UseCase-Properties`, `xProxy-Limit-IDs`) are available under the **Advanced Tracking** collection and should only be modified with guidance from Pay-i Support.
 

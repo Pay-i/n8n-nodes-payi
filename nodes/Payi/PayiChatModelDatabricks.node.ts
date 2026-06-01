@@ -12,15 +12,33 @@ import * as path from 'path';
 
 import { chatModelDatabricksFields } from './descriptions/chatModelDatabricksFields';
 import { createTrackingFields } from './descriptions/trackingFields';
+import { versionNotice } from './descriptions/versionNotice';
+import { sanitizeHeaderValue } from './utils/headers';
 
 // Runtime-only modules provided by n8n's VM context — not available at compile time.
 declare function require(module: string): any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const PAYI_DEBUG_LOG = path.join(process.env.HOME || '/tmp', '.n8n', 'payi-databricks-debug.log');
 const PAYI_FILE_DEBUG_ENABLED = process.env.PAYI_FILE_DEBUG === '1';
+
+// Mask sensitive keys before they hit disk. payiLog dumps full request/response
+// JSON which includes credential headers — without this, Pay-i and provider keys
+// land in plaintext in payi-databricks-debug.log.
+const SENSITIVE_KEYS = ['xProxy-Api-Key', 'Authorization', 'apiKey', 'api_key', 'openai_api_key'];
+const SECRET_PATTERNS: ReadonlyArray<RegExp> = SENSITIVE_KEYS.map(
+	(k) => new RegExp(`("${k}"\\s*:\\s*")([^"]+)(")`, 'gi'),
+);
+function redactSecrets(s: string): string {
+	let out = s;
+	for (const re of SECRET_PATTERNS) {
+		out = out.replace(re, (_m, p1, _val, p3) => `${p1}***REDACTED***${p3}`);
+	}
+	return out;
+}
+
 function payiLog(msg: string) {
 	if (!PAYI_FILE_DEBUG_ENABLED) return;
-	const line = `[${new Date().toISOString()}] ${msg}\n`;
+	const line = `[${new Date().toISOString()}] ${redactSecrets(msg)}\n`;
 	fs.appendFileSync(PAYI_DEBUG_LOG, line);
 }
 
@@ -63,7 +81,8 @@ export class PayiChatModelDatabricks implements INodeType {
 		],
 		properties: [
 			...chatModelDatabricksFields,
-			...createTrackingFields('databricks', 'endpointName'),
+			...createTrackingFields('databricks', 'endpointName', 'Pay-i Databricks (Proxy)'),
+			...versionNotice,
 		],
 	};
 
@@ -190,21 +209,30 @@ export class PayiChatModelDatabricks implements INodeType {
 		const useCaseId = this.getNodeParameter('useCaseId', itemIndex, '') as string;
 		const advancedTracking = this.getNodeParameter('advancedTracking', itemIndex, {}) as Record<string, string>;
 		const useCaseVersion = advancedTracking.useCaseVersion || '';
-		const useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		// Canvas display name (e.g. "Pay-i DBX #4 - Summarizer") is more useful in
+		// Pay-i's dashboard than the generic node-type label. If the user hasn't
+		// changed the parameter from its hard-coded default, swap in the canvas name.
+		let useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		if (!useCaseStep || useCaseStep === 'Pay-i Databricks (Proxy)') {
+			useCaseStep = this.getNode().name;
+		}
 		const useCaseProperties = advancedTracking.useCaseProperties || '';
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
 		const flattenContent = (advancedTracking as Record<string, unknown>).flattenContent !== false;
 
-		if (userId) trackingHeaders['xProxy-User-ID'] = userId;
-		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = useCaseName;
-		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = useCaseId;
-		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = useCaseVersion;
-		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = useCaseStep;
+		// Header values must be ASCII; canvas names / workflow names may include
+		// em-dashes, interpuncts, smart quotes etc. that crash node fetch or
+		// produce opaque 400s upstream. Sanitize every xProxy-* value at the source.
+		if (userId) trackingHeaders['xProxy-User-ID'] = sanitizeHeaderValue(userId);
+		if (useCaseName) trackingHeaders['xProxy-UseCase-Name'] = sanitizeHeaderValue(useCaseName);
+		if (useCaseId) trackingHeaders['xProxy-UseCase-ID'] = sanitizeHeaderValue(useCaseId);
+		if (useCaseVersion) trackingHeaders['xProxy-UseCase-Version'] = sanitizeHeaderValue(useCaseVersion);
+		if (useCaseStep) trackingHeaders['xProxy-UseCase-Step'] = sanitizeHeaderValue(useCaseStep);
 		if (useCaseProperties) {
-			trackingHeaders['xProxy-UseCase-Properties'] = useCaseProperties;
+			trackingHeaders['xProxy-UseCase-Properties'] = sanitizeHeaderValue(useCaseProperties);
 		}
-		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = limitIds;
+		if (limitIds) trackingHeaders['xProxy-Limit-IDs'] = sanitizeHeaderValue(limitIds);
 
 		const providerBaseUri = deriveProviderBaseUri(workspaceUrl);
 
@@ -233,73 +261,69 @@ export class PayiChatModelDatabricks implements INodeType {
 			this.logger.info(`[Pay-i Databricks] Headers: ${JSON.stringify(masked, null, 2)}`);
 		}
 
-		// Pass redacted headers for serialization (visible in n8n trace UI),
-		// then replace with real headers on the live client config.
-		const redactedHeaders: Record<string, string> = { ...defaultHeaders };
-		if (redactedHeaders['xProxy-Api-Key']) {
-			redactedHeaders['xProxy-Api-Key'] = '***';
-		}
-
 		const model = new ChatOpenAI({
 			apiKey: accessToken,
 			model: endpointName,
 			...options,
 			configuration: {
 				baseURL: `${payiBaseUrl}/api/v1/proxy/openai/v1`,
-				defaultHeaders: redactedHeaders,
+				defaultHeaders,
 			},
 			callbacks: [new N8nLlmTracing(this)],
 			onFailedAttempt: makeN8nLlmFailedAttemptHandler(this),
 		});
 
-		// Replace redacted headers with real ones on the live client config
-		(model as any).clientConfig.defaultHeaders = defaultHeaders; // eslint-disable-line @typescript-eslint/no-explicit-any
-
 		payiLog(`Model configured: baseURL=${payiBaseUrl}/api/v1/proxy/openai/v1, model=${endpointName}`);
 		payiLog(`Options: ${JSON.stringify(options)}`);
 
-		// Patch completionWithRetry to normalize structured content and optionally log
+		// Patch completionWithRetry to normalize structured content and optionally log.
+		// In @langchain/openai@1.x, ChatOpenAI delegates _generate() to either
+		// `model.completions` (Chat Completions API) or `model.responses` (Responses API).
+		// completionWithRetry lives on those sub-objects, not on the model itself.
 		const logger = debugLogging ? this.logger : null;
-		const origCompletionWithRetry = (model as any).completionWithRetry.bind(model); // eslint-disable-line @typescript-eslint/no-explicit-any
-		(model as any).completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-			payiLog(`──── RAW REQUEST TO OPENAI SDK ────`);
-			payiLog(`Request params: ${JSON.stringify(request).substring(0, 5000)}`);
-			payiLog(`ClientConfig baseURL: ${(model as any).clientConfig?.baseURL || 'not set'}`); // eslint-disable-line @typescript-eslint/no-explicit-any
-			payiLog(`ClientConfig defaultHeaders: ${JSON.stringify((model as any).clientConfig?.defaultHeaders || {})}`); // eslint-disable-line @typescript-eslint/no-explicit-any
-			try {
-				const result = await origCompletionWithRetry(request, opts);
-				// Flatten structured content blocks to a plain string.
-				// Some models (e.g. Gemini/Claude via Databricks) return content as
-				// [{type:"text", text:"...", ...}] which is non-standard for the
-				// OpenAI chat completion contract. LangChain expects a string.
-				if (flattenContent && result?.choices) {
-					for (const choice of result.choices) {
-						if (Array.isArray(choice?.message?.content)) {
-							choice.message.content = choice.message.content
-								.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
-								.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
-								.join('');
+		const patchCompletionWithRetry = (target: any, label: string) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+			if (!target || typeof target.completionWithRetry !== 'function') return;
+			const orig = target.completionWithRetry.bind(target);
+			target.completionWithRetry = async function(request: any, opts?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+				payiLog(`──── RAW REQUEST TO OPENAI SDK (${label}) ────`);
+				payiLog(`Request params: ${JSON.stringify(request).substring(0, 5000)}`);
+				try {
+					const result = await orig(request, opts);
+					// Flatten structured content blocks to a plain string.
+					// Some models (e.g. Gemini/Claude via Databricks) return content as
+					// [{type:"text", text:"...", ...}] which is non-standard for the
+					// OpenAI chat completion contract. LangChain expects a string.
+					if (flattenContent && result?.choices) {
+						for (const choice of result.choices) {
+							if (Array.isArray(choice?.message?.content)) {
+								choice.message.content = choice.message.content
+									.filter((block: any) => block.type === 'text') // eslint-disable-line @typescript-eslint/no-explicit-any
+									.map((block: any) => block.text) // eslint-disable-line @typescript-eslint/no-explicit-any
+									.join('');
+							}
 						}
 					}
+					payiLog(`──── RAW RESPONSE FROM OPENAI SDK (${label}) ────`);
+					payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
+					if (logger) {
+						logger.info(`[Pay-i Databricks] Result: ${JSON.stringify(result).substring(0, 3000)}`);
+					}
+					return result;
+				} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+					payiLog(`──── ERROR FROM OPENAI SDK (${label}) ────`);
+					payiLog(`Error: ${err.message || err}`);
+					payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
+					payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
+					if (logger) {
+						logger.info(`[Pay-i Databricks] Error: ${err.message || err}`);
+						logger.info(`[Pay-i Databricks] Status: ${err.status || err.statusCode || 'unknown'}`);
+					}
+					throw err;
 				}
-				payiLog(`──── RAW RESPONSE FROM OPENAI SDK ────`);
-				payiLog(`Result: ${JSON.stringify(result).substring(0, 5000)}`);
-				if (logger) {
-					logger.info(`[Pay-i Databricks] Result: ${JSON.stringify(result).substring(0, 3000)}`);
-				}
-				return result;
-			} catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-				payiLog(`──── ERROR FROM OPENAI SDK ────`);
-				payiLog(`Error: ${err.message || err}`);
-				payiLog(`Status: ${err.status || err.statusCode || 'unknown'}`);
-				payiLog(`Full error: ${JSON.stringify(err, Object.getOwnPropertyNames(err)).substring(0, 5000)}`);
-				if (logger) {
-					logger.info(`[Pay-i Databricks] Error: ${err.message || err}`);
-					logger.info(`[Pay-i Databricks] Status: ${err.status || err.statusCode || 'unknown'}`);
-				}
-				throw err;
-			}
+			};
 		};
+		patchCompletionWithRetry((model as any).completions, 'completions'); // eslint-disable-line @typescript-eslint/no-explicit-any
+		patchCompletionWithRetry((model as any).responses, 'responses'); // eslint-disable-line @typescript-eslint/no-explicit-any
 
 		return {
 			response: model,

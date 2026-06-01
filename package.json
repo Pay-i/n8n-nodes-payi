@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-payi",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "n8n community node for routing LLM requests through Pay-i proxy with cost tracking and budget enforcement",
 	"keywords": [
 		"n8n-community-node-package",
@@ -29,6 +29,8 @@
 		"format": "prettier nodes credentials --write",
 		"lint": "eslint nodes credentials",
 		"lint:fix": "eslint nodes credentials --fix",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"prepublishOnly": "npm run build"
 	},
 	"files": [
@@ -55,7 +57,8 @@
 		"n8n-workflow": "*",
 		"prettier": "~3.3.0",
 		"typescript": "~5.5.0",
-		"typescript-eslint": "^8.57.1"
+		"typescript-eslint": "^8.57.1",
+		"vitest": "^4.1.7"
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"

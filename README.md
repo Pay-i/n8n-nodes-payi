@@ -91,8 +91,8 @@ Pay-i uses custom HTTP headers to associate requests with users, Use Cases, and 
 |-------|---------|-------------|
 | **xProxy-User-ID** | _(empty)_ | User identifier for per-user cost attribution |
 | **xProxy-UseCase-Name** | Workflow name | Use Case Name for tracking and KPI scoring |
-| **xProxy-UseCase-ID** | `{provider}/{model}/{executionId}` | Unique instance ID for grouping requests |
-| **xProxy-UseCase-Step** | Node name on canvas | Step within a multi-step workflow |
+| **xProxy-UseCase-ID** | `{nodeId}` (UUID) | Stable per-node ID — all runs of one canvas node aggregate under one use case |
+| **xProxy-UseCase-Step** | Node display name (e.g. `Pay-i Databricks (Proxy)`) | Step within a multi-step workflow — override with a custom label when useful |
 
 ### Advanced Tracking (collapsed in UI)
 
