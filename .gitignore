@@ -26,6 +26,8 @@ coverage/
 todos/
 notes/
 Plans and Docs/
+docs/superpowers/
+docs/superpowers/**
 *.mp4
 
 # Agent / IDE harness state
