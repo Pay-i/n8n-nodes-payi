@@ -11,7 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 - **Use Case Step default no longer throws an expression error.** The previous default `={{ $node.name }}` was invalid — `$node` in n8n is a lookup proxy for *other* nodes, not an accessor for the current node, so the expression threw "The node 'name' doesn't exist." Default is now a literal node display name (e.g. `Pay-i Databricks (Proxy)`), passed in by each node so a sensible Step header is sent without any expression evaluation. Override with a custom label (e.g. "Step 1 - Outline") for multi-step workflows.
+- **Use Case Step now reports the canvas display name** (e.g. `Pay-i DBX #4 - Summarizer`) when the user hasn't overridden the field. Each chat-model node falls back to `this.getNode().name` at runtime, so multi-step workflows show distinct steps in Pay-i instead of one generic label.
+- **Non-ASCII characters in tracking headers are sanitized** (`·` → `-`, `—` → `-`, smart quotes → ASCII). Without this, n8n's HTTP path either threw `ByteString` errors or sent malformed headers that Pay-i 400'd with empty bodies. New `utils/headers.ts` applies to every `xProxy-*` value across all five chat-model nodes.
 - **Pay-i Databricks (Proxy) chat model crashed with `Cannot read properties of undefined (reading 'bind')` on n8n 2.19.x.** `@langchain/openai@1.x` (shipped with current n8n) refactored `ChatOpenAI` so that `completionWithRetry` lives on `model.completions` and `model.responses` sub-objects rather than on the model instance itself. The node patched `model.completionWithRetry` directly, which is `undefined` in 1.x. Patches now apply to both `model.completions` and `model.responses` defensively, with a guard that no-ops if the structure changes again. Also dropped the redacted-then-swap header dance — real headers are now passed straight to the constructor (matching the OpenAI variant), since the post-construction `clientConfig.defaultHeaders` mutation was a fragile workaround whose effect depended on `this.client` being lazily initialized.
+
+### Security
+- **`PAYI_FILE_DEBUG=1` no longer writes API keys in plaintext.** The Databricks node's `payiLog()` was dumping full request/response JSON including `xProxy-Api-Key`, `Authorization`, and `openai_api_key`. New `redactSecrets()` masks those values to `***REDACTED***` before each write. Scoped to Databricks (the only node with file-debug logging).
 
 ## [1.0.2] - 2026-06-01
 
