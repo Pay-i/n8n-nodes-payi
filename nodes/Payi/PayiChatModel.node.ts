@@ -74,7 +74,13 @@ export class PayiChatModel implements INodeType {
 		// Advanced tracking fields (collapsed in UI under "Advanced Tracking")
 		const advancedTracking = this.getNodeParameter('advancedTracking', itemIndex, {}) as Record<string, string>;
 		const useCaseVersion = advancedTracking.useCaseVersion || '';
-		const useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		// Canvas display name (e.g. "Pay-i OpenAI #4 - Summarizer") is more useful in
+		// Pay-i's dashboard than the generic node-type label. If the user hasn't
+		// changed the parameter from its hard-coded default, swap in the canvas name.
+		let useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		if (!useCaseStep || useCaseStep === 'Pay-i OpenAI (Proxy)') {
+			useCaseStep = this.getNode().name;
+		}
 		const useCaseProperties = advancedTracking.useCaseProperties || '';
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;

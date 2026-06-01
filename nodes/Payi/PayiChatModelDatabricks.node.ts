@@ -191,7 +191,13 @@ export class PayiChatModelDatabricks implements INodeType {
 		const useCaseId = this.getNodeParameter('useCaseId', itemIndex, '') as string;
 		const advancedTracking = this.getNodeParameter('advancedTracking', itemIndex, {}) as Record<string, string>;
 		const useCaseVersion = advancedTracking.useCaseVersion || '';
-		const useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		// Canvas display name (e.g. "Pay-i DBX #4 - Summarizer") is more useful in
+		// Pay-i's dashboard than the generic node-type label. If the user hasn't
+		// changed the parameter from its hard-coded default, swap in the canvas name.
+		let useCaseStep = this.getNodeParameter('useCaseStep', itemIndex, '') as string;
+		if (!useCaseStep || useCaseStep === 'Pay-i Databricks (Proxy)') {
+			useCaseStep = this.getNode().name;
+		}
 		const useCaseProperties = advancedTracking.useCaseProperties || '';
 		const limitIds = advancedTracking.limitIds || '';
 		const debugLogging = !!(advancedTracking as Record<string, unknown>).debugLogging;
