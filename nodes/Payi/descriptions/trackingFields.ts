@@ -36,9 +36,9 @@ export function createTrackingFields(
 			displayName: 'Use Case ID',
 			name: 'useCaseId',
 			type: 'string',
-			default: `={{ $nodeId }}`,
+			default: `={{ $execution.id }}`,
 			description:
-				'Unique identifier for this use case instance. Defaults to the n8n node ID — all runs of the same node aggregate under one Pay-i use case.',
+				'Unique identifier for this use case instance. Defaults to the n8n execution ID — each workflow run gets its own Pay-i use case.',
 		},
 		{
 			displayName: 'Use Case Step',
