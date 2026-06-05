@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **Docs:** README and deployment guide referenced the wrong Databricks credential type (`databricks` / `databricksApi` from `n8n-nodes-databricks`); corrected to the package's own `payiDatabricksApi` credential. Removed the bogus instruction to install a separate `n8n-nodes-databricks` package.
+- **Docs:** Toolkit link in README pointed at a non-existent repo (`pay-i/payi-n8n-toolkit`); corrected to `Pay-i/utilities`.
+- **Docs:** Removed broken links to `docs/reference/databricks/index.md` (path doesn't exist) in `docs/providers/databricks.md`; replaced with a Pay-i support pointer for Agent Bricks / bulk-ingest workloads.
+- **Docs:** Replaced placeholder Databricks endpoint example `databricks-gpt-5-4` with realistic endpoint names.
+
+### Changed
+- **SBOM:** Added missing dev dependencies (`@types/node`, `vitest`); refreshed last-updated date.
+
 ## [1.0.5] - 2026-06-05
 
 ### Fixed

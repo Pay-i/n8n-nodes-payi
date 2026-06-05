@@ -222,13 +222,13 @@ AWS SigV4 request signing is handled automatically by the Pay-i Bedrock node. Yo
 
 ### 4.6 Databricks Credential
 
-**Credential type:** `Databricks API` (provided by the `n8n-nodes-databricks` community node)
+**Credential type:** `Pay-i Databricks API` (provided by this community node)
 
-> **Dependency note:** The Databricks credential type is defined by the `n8n-nodes-databricks` community node, not by `n8n-nodes-payi`. You must install `n8n-nodes-databricks` before the Databricks credential type appears in n8n. Install it the same way as this package (Settings > Community Nodes > Install > `n8n-nodes-databricks`).
+> **No extra package required.** This package ships its own `payiDatabricksApi` credential type — namespaced to avoid collision with n8n's built-in `databricksApi` credential, which uses different field names. You do not need to install `n8n-nodes-databricks`.
 
 | Field | Value | Notes |
 |-------|-------|-------|
-| Workspace URL | `https://your-workspace.azuredatabricks.net` | Full URL including scheme, no trailing slash |
+| Workspace URL | `https://your-workspace.azuredatabricks.net` | Full URL including scheme, no trailing slash. AWS/GCP workspaces use `https://{id}.cloud.databricks.com` |
 | Personal Access Token | Your Databricks PAT | Generate from Databricks UI: User Settings > Developer > Access Tokens |
 
 ---

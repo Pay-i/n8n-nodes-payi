@@ -27,7 +27,7 @@ These nodes plug directly into n8n's **AI Agent** node as a chat model input. Ea
 | **Pay-i Anthropic (Proxy)** | Anthropic | `anthropicApi` | [docs/providers/anthropic.md](docs/providers/anthropic.md) |
 | **Pay-i Azure AI Foundry (Proxy)** | Azure OpenAI | `azureOpenAiApi` | [docs/providers/azure.md](docs/providers/azure.md) |
 | **Pay-i Amazon Bedrock (Proxy)** | AWS Bedrock | `aws` | [docs/providers/bedrock.md](docs/providers/bedrock.md) |
-| **Pay-i Databricks (Proxy)** | Databricks | `databricks` | [docs/providers/databricks.md](docs/providers/databricks.md) |
+| **Pay-i Databricks (Proxy)** | Databricks | `payiDatabricksApi` | [docs/providers/databricks.md](docs/providers/databricks.md) |
 
 ### Generic Proxy Node
 
@@ -119,7 +119,7 @@ All requests are routed through: `{PAYI_BASE_URL}/api/v1/proxy/{provider_path}`
 
 ## Migrating Existing Workflows
 
-Already have n8n workflows calling OpenAI, Anthropic, Databricks, or other LLM providers natively? The **[payi-n8n-toolkit](https://github.com/pay-i/payi-n8n-toolkit)** can scan your n8n instance, find native LLM nodes, and replace them with Pay-i equivalents — rewiring all connections and credentials automatically.
+Already have n8n workflows calling OpenAI, Anthropic, Databricks, or other LLM providers natively? The **[payi-utilities n8n-toolkit](https://github.com/Pay-i/utilities)** can scan your n8n instance, find native LLM nodes, and replace them with Pay-i equivalents — rewiring all connections and credentials automatically.
 
 ```bash
 export N8N_BASE_URL=http://localhost:5678

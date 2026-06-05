@@ -8,10 +8,12 @@ This package has zero runtime dependencies. All dependencies are dev-only (build
 
 | Package | Version | License | Purpose |
 |---------|---------|---------|---------|
+| @types/node | ^22 | MIT | Node.js type definitions |
 | eslint | ^10 | MIT | Linting |
 | typescript-eslint | ^8 | MIT | TypeScript parser and rules for eslint |
 | prettier | ~3.3 | MIT | Code formatting |
 | typescript | ~5.5 | Apache-2.0 | TypeScript compiler |
+| vitest | ^4 | MIT | Test runner |
 
 ## Peer Dependencies
 
@@ -36,4 +38,4 @@ This package has zero runtime dependencies. All dependencies are dev-only (build
 |---------|-----------|---------|
 | payi-n8n-toolkit | [Pay-i/utilities](https://github.com/Pay-i/utilities) | Migration and audit scripts for n8n workflows |
 
-Last updated: 2026-03-20
+Last updated: 2026-06-05

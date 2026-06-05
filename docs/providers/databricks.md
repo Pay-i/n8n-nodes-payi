@@ -2,7 +2,7 @@
 
 Routes Databricks Model Serving chat model requests through the Pay-i proxy for cost tracking, budget enforcement, and usage analytics.
 
-> **This node works for standard Databricks Model Serving endpoints** — endpoints that expose the OpenAI-compatible `chat/completions` path under `/serving-endpoints` on your workspace URL. If you're using **Agent Bricks**, or need to import historical usage data, the proxy path isn't available for those workload types. See [Databricks Bulk Ingest](../reference/databricks/index.md) instead.
+> **This node works for standard Databricks Model Serving endpoints** — endpoints that expose the OpenAI-compatible `chat/completions` path under `/serving-endpoints` on your workspace URL. If you're using **Agent Bricks**, or need to import historical usage data, the proxy path isn't available for those workload types. Contact [Pay-i support](https://www.pay-i.com/support) about post-hoc ingestion options for those workloads.
 
 ## Node Details
 
@@ -27,7 +27,7 @@ The Pay-i Databricks API credential stores the workspace URL (`workspaceUrl`) an
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| Endpoint Name | Yes | — | Databricks serving endpoint name (for example, `databricks-gpt-5-4`) |
+| Endpoint Name | Yes | — | Databricks serving endpoint name (for example, `databricks-meta-llama-3-1-70b-instruct` or `databricks-claude-3-7-sonnet`) |
 | Cloud Provider | Yes | `AWS` | Cloud where the workspace is hosted: AWS, Azure, or Google Cloud (GCP). Used for pricing. |
 
 ### Options (collapsed)
@@ -171,4 +171,4 @@ Existing native Databricks credentials (`host` / `token`) are mapped onto the Pa
 
 ---
 
-*See also: [Databricks Bulk Ingest](../reference/databricks/index.md) — for Agent Bricks, historical data import, and other workloads not exposed via `/serving-endpoints`*
+*For Agent Bricks, historical data import, and other workloads not exposed via `/serving-endpoints`, contact [Pay-i support](https://www.pay-i.com/support) about post-hoc ingestion options.*
